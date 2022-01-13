@@ -1,0 +1,74 @@
+[App]
+channel_types = ["tendermint_and_eth"]
+Env = "dev"
+log_level = "debug"
+
+[log]
+log_file_name = "teleport-relayer"
+logmax_age = 365
+logrotation_time = 24
+
+[Chain]
+
+[Chain.Dest]
+chain_type = "eth"
+enabled = true
+
+[Chain.Dest.Cache]
+filename = "destdata"
+start_height = 9955738
+
+[Chain.Dest.Eth]
+chain_id = 4
+chain_name = "test-eth"
+comment_slot = 104
+gas_limit = 4100000
+max_gas_price = 1500000000
+tip_coefficient = 0.2
+uri = "https://rinkeby.infura.io/v3/023f2af0f670457d9c4ea9cb524f0810"
+Update_client_frequency = 2
+
+[Chain.Dest.Eth.Contracts]
+
+[Chain.Dest.Eth.Contracts.Ack_packet]
+Addr = "0x2fa48e39b5D28a5d1972a3B393274e3FfD98741e"
+Opt_priv_key = "6995eddbc393d46b4bad576d1de73f5345782af4d003739176807ac3cbe969f6"
+Topic = "AckWritten((uint64,string,string,string,string,bytes),bytes)"
+
+[Chain.Dest.Eth.Contracts.Client]
+Addr = "0xDf874e84E926b9f14bF7CAd9F438Be5c41344992"
+Opt_priv_key = "6995eddbc393d46b4bad576d1de73f5345782af4d003739176807ac3cbe969f6"
+Topic = ""
+
+[Chain.Dest.Eth.Contracts.Packet]
+Addr = "0x2fa48e39b5D28a5d1972a3B393274e3FfD98741e"
+Opt_priv_key = "6995eddbc393d46b4bad576d1de73f5345782af4d003739176807ac3cbe969f6"
+Topic = "PacketSent((uint64,string,string,string,string,bytes))"
+
+
+[Chain.Source]
+Chain_type = "tendermint"
+Enabled = true
+
+[Chain.Source.Cache]
+Filename = "sourcedata"
+start_height = 134249
+
+
+[Chain.Source.Tendermint]
+Chain_id = "teleport_9000-1"
+Chain_name = "teleport"
+Clean_packet_enabled = true
+Gas = 0
+grpc_addr = "10.41.20.10:9090"
+request_timeout = 100
+update_client_frequency = 1
+
+[Chain.Source.Tendermint.Fee]
+Amount = 0
+Denom = ""
+
+[Chain.Source.Tendermint.Key]
+Name = "node0"
+Password = "1234567890"
+mnemonic = "near unhappy decade march tourist moral away govern zoo patient silk youth burger mix label mercy chat exhibit habit degree gospel banana pear caution"
