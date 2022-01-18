@@ -30,6 +30,7 @@ import (
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 
 	"github.com/teleport-network/teleport-sdk-go/client"
+	xibcbsc "github.com/teleport-network/teleport/x/xibc/clients/light-clients/bsc/types"
 	xibceth "github.com/teleport-network/teleport/x/xibc/clients/light-clients/eth/types"
 	xibctendermint "github.com/teleport-network/teleport/x/xibc/clients/light-clients/tendermint/types"
 	clienttypes "github.com/teleport-network/teleport/x/xibc/core/client/types"
@@ -434,7 +435,7 @@ func (c *Tendermint) GetLightClientDelayTime(chainName string) (uint64, error) {
 
 func (c *Tendermint) UpdateClient(header exported.Header, chainName string) error {
 	h := codectypes.UnsafePackAny(header)
-	_, err := c.TeleportSDK.UpdateClient(clienttypes.MsgUpdateClient{
+	res, err := c.TeleportSDK.UpdateClient(clienttypes.MsgUpdateClient{
 		ChainName: chainName,
 		Header:    h,
 		Signer:    c.address,
@@ -448,7 +449,9 @@ func (c *Tendermint) UpdateClient(header exported.Header, chainName string) erro
 			return nil
 		}
 	}
-	//fmt.Printf("res:%v",res.TxResponse.TxHash)
+	if res.TxResponse.Code != 0 {
+		return fmt.Errorf(res.TxResponse.RawLog)
+	}
 	return err
 }
 
@@ -725,6 +728,7 @@ func makeCodec() *codec.ProtoCodec {
 	ir := codectypes.NewInterfaceRegistry()
 	clienttypes.RegisterInterfaces(ir)
 	govtypes.RegisterInterfaces(ir)
+	xibcbsc.RegisterInterfaces(ir)
 	xibctendermint.RegisterInterfaces(ir)
 	xibceth.RegisterInterfaces(ir)
 	packettypes.RegisterInterfaces(ir)

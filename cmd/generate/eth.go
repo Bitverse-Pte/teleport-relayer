@@ -19,7 +19,7 @@ import (
 )
 
 func generateETHJson(cfg *config.ChainCfg, tmClient *tendermint.Tendermint, logger *logrus.Entry) {
-	fmt.Printf("%+v", cfg.Eth)
+	fmt.Printf("%+v \n", cfg.Eth)
 	ctx, cancel := context.WithTimeout(context.Background(), 10)
 	defer cancel()
 	rpcClient, err := rpc.DialContext(ctx, cfg.Eth.URI)
@@ -75,27 +75,21 @@ func generateETHJson(cfg *config.ChainCfg, tmClient *tendermint.Tendermint, logg
 	}
 	consensusState := &xibceth.ConsensusState{
 		Timestamp: header.Time,
-		Number:    number,
+		Height:    number,
 		Root:      header.Root[:],
 	}
 
-	clientStateBytes, err := tmClient.Codec.MarshalJSON(clientState)
+	clientStateBytes, err := tmClient.Codec.MarshalInterfaceJSON(clientState)
 	if err != nil {
 		logger.Fatal(err)
 	}
-
-	clientStateStr := string(clientStateBytes)
-	clientStateStr = EthClientStatePrefix + clientStateStr[1:]
 	clientStateFilename := fmt.Sprintf("%s_clientState.json", cfg.Eth.ChainName)
-	WriteCreateClientFiles(clientStateFilename, clientStateStr)
+	WriteCreateClientFiles(clientStateFilename, string(clientStateBytes))
 
-	consensusStateBytes, err := tmClient.Codec.MarshalJSON(consensusState)
+	consensusStateBytes, err := tmClient.Codec.MarshalInterfaceJSON(consensusState)
 	if err != nil {
 		logger.Fatal(err)
 	}
-
-	consensusStateStr := string(consensusStateBytes)
-	consensusStateStr = EthConsensusStatePrefix + consensusStateStr[1:]
-	consensusStateFilename1 := fmt.Sprintf("%s_consensusState.json", cfg.Eth.ChainName)
-	WriteCreateClientFiles(consensusStateFilename1, consensusStateStr)
+	consensusStateFilename := fmt.Sprintf("%s_consensusState.json", cfg.Eth.ChainName)
+	WriteCreateClientFiles(consensusStateFilename, string(consensusStateBytes))
 }

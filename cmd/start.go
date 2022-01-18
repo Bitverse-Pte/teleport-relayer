@@ -14,3 +14,8 @@ func ethClientSync() {
 	a := app.NewApp()
 	a.EthClientSync()
 }
+
+func bscClientSync() {
+	a := app.NewApp()
+	a.BscClientSync()
+}

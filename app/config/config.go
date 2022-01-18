@@ -60,8 +60,22 @@ type (
 		Cache      Cache      `toml:"cache"`
 		Tendermint Tendermint `toml:"tendermint"`
 		Eth        Eth        `toml:"eth"`
+		Bsc        Bsc        `toml:"bsc"`
 		ChainType  string     `toml:"chain_type"`
-		// Enabled    bool       `toml:"enabled"`
+	}
+
+	// bsc config ============================================================
+
+	Bsc struct {
+		URI                   string       `toml:"uri"`
+		ChainID               uint64       `toml:"chain_id"`
+		ChainName             string       `toml:"chain_name"`
+		Contracts             EthContracts `toml:"contracts"`
+		UpdateClientFrequency uint64       `toml:"update_client_frequency"`
+		GasLimit              uint64       `toml:"gas_limit"`
+		MaxGasPrice           uint64       `toml:"max_gas_price"`
+		CommentSlot           int64        `toml:"comment_slot"`
+		TipCoefficient        float64      `toml:"tip_coefficient"`
 	}
 
 	// eth config ============================================================

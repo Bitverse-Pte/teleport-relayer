@@ -6,19 +6,26 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
+	"github.com/cosmos/cosmos-sdk/codec"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/tx"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/sirupsen/logrus"
 
-	"github.com/tendermint/tendermint/libs/bytes"
-	tmtypes "github.com/tendermint/tendermint/proto/tendermint/types"
-
-	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
-
+	"github.com/teleport-network/teleport-relayer/app/services/tendermint"
+	xibceth "github.com/teleport-network/teleport/x/xibc/clients/light-clients/eth/types"
 	xibctendermint "github.com/teleport-network/teleport/x/xibc/clients/light-clients/tendermint/types"
 	clienttypes "github.com/teleport-network/teleport/x/xibc/core/client/types"
 	commitmenttypes "github.com/teleport-network/teleport/x/xibc/core/commitment/types"
+	packettypes "github.com/teleport-network/teleport/x/xibc/core/packet/types"
 
-	"github.com/teleport-network/teleport-relayer/app/services/tendermint"
+	"github.com/tendermint/tendermint/libs/bytes"
+	tmtypes "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 type TendermintConsensusState struct {
@@ -30,6 +37,19 @@ type TendermintConsensusState struct {
 type Timestamp struct {
 	Secs  int64 `json:"secs"`
 	Nanos int64 `json:"nanos"`
+}
+
+func makeCodec() *codec.ProtoCodec {
+	ir := codectypes.NewInterfaceRegistry()
+	clienttypes.RegisterInterfaces(ir)
+	govtypes.RegisterInterfaces(ir)
+	xibctendermint.RegisterInterfaces(ir)
+	xibceth.RegisterInterfaces(ir)
+	packettypes.RegisterInterfaces(ir)
+	ir.RegisterInterface("cosmos.v1beta1.Msg", (*sdk.Msg)(nil))
+	tx.RegisterInterfaces(ir)
+	cryptocodec.RegisterInterfaces(ir)
+	return codec.NewProtoCodec(ir)
 }
 
 func generateTendermintHex(
@@ -74,11 +94,11 @@ func generateTendermintHex(
 		},
 		TimeDelay: 0,
 	}
-	// consensusState := xibctendermint.ConsensusState{
-	//	Timestamp: tmHeader.Time ,
+	//consensusState := xibctendermint.ConsensusState{
+	//	Timestamp:          tmHeader.Time,
 	//	Root:               bytes.HexBytes(tmHeader.AppHash),
 	//	NextValidatorsHash: bytes.HexBytes(tmHeader.NextValidatorsHash), // TODO check
-	// }
+	//}
 
 	consensusState := TendermintConsensusState{
 		Timestamp: Timestamp{
@@ -96,8 +116,8 @@ func generateTendermintHex(
 	// write file
 	clientStateFilename := fmt.Sprintf("%s_clientState.json", chainName)
 	WriteCreateClientFiles(clientStateFilename, string(clientStateBytes))
-	clientStateFilename2 := fmt.Sprintf("%s_clientState.txt", chainName)
 
+	clientStateFilename2 := fmt.Sprintf("%s_clientState.txt", chainName)
 	WriteCreateClientFiles(clientStateFilename2, hexutil.Encode(clientStateBytes)[2:])
 	fmt.Println("clientState: ", hexutil.Encode(clientStateBytes)[2:])
 	consensusStateBytes, err := json.Marshal(&consensusState)
@@ -161,21 +181,17 @@ func generateTendermintJson(
 		NextValidatorsHash: validatorSet.Hash(),
 	}
 
-	clientStateBytes, err := client.Codec.MarshalJSON(clientState)
+	clientStateBytes, err := client.Codec.MarshalInterfaceJSON(clientState)
 	if err != nil {
 		panic(err)
 	}
 	// write file
-	clientStateStr := string(clientStateBytes)
-	clientStateStr = clientStatePrefix + clientStateStr[1:]
 	clientStateFilename := fmt.Sprintf("%s_clientState.json", chainName)
-	WriteCreateClientFiles(clientStateFilename, clientStateStr)
-	consensusStateBytes, err := client.Codec.MarshalJSON(consensusState)
+	WriteCreateClientFiles(clientStateFilename, string(clientStateBytes))
+	consensusStateBytes, err := client.Codec.MarshalInterfaceJSON(consensusState)
 	if err != nil {
 		panic(err)
 	}
-	consensusStateStr := string(consensusStateBytes)
-	consensusStateStr = consensusStatePrefix + consensusStateStr[1:]
 	consensusStateFilename := fmt.Sprintf("%s_consensusState.json", chainName)
-	WriteCreateClientFiles(consensusStateFilename, consensusStateStr)
+	WriteCreateClientFiles(consensusStateFilename, string(consensusStateBytes))
 }

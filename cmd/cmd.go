@@ -25,6 +25,11 @@ var (
 		Short: "eth light client sync",
 		Run:   func(cmd *cobra.Command, args []string) { ethClientSync() },
 	}
+	bscSyncCmd = &cobra.Command{
+		Use:   "bscClientSync",
+		Short: "bsc light client sync",
+		Run:   func(cmd *cobra.Command, args []string) { bscClientSync() },
+	}
 	configInitCmd = &cobra.Command{
 		Use:   "init",
 		Short: "init configuration file",
@@ -43,12 +48,14 @@ func init() {
 	generateCmd.Flags().StringVarP(&config.LocalConfig, "CONFIG", "c", "", "config path: /opt/local.toml")
 	generateCmd.Flags().StringVarP(&config.Home, "home", "", "", "config path: .teleport-relayer")
 	batchCmd.Flags().StringVarP(&config.LocalConfig, "CONFIG", "c", "", "config path: /opt/local.toml")
+	bscSyncCmd.Flags().StringVarP(&config.LocalConfig, "CONFIG", "c", "", "config path: /opt/local.toml")
 	// batchCmd.Flags().Uint64VarP(&endHeight, "END", "e", 0, "ethereum ending height")
 	startCmd.Flags().StringVarP(&config.LocalConfig, "CONFIG", "c", "", "config path: /opt/local.toml")
 	rootCmd.AddCommand(startCmd)
 	rootCmd.AddCommand(generateCmd)
 	rootCmd.AddCommand(configInitCmd)
 	rootCmd.AddCommand(batchCmd)
+	rootCmd.AddCommand(bscSyncCmd)
 }
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {

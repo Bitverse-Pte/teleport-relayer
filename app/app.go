@@ -56,6 +56,14 @@ func (a *App) EthClientSync() {
 	signalHandler()
 }
 
+func (a *App) BscClientSync() {
+	for chainName, channel := range a.channelMap {
+		a.logger.Printf("relay packet for %s\n", chainName)
+		go channel.BscClientSync()
+	}
+	signalHandler()
+}
+
 func signalHandler() {
 	var ch = make(chan os.Signal, 1)
 

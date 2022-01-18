@@ -4,6 +4,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/teleport-network/teleport-relayer/app/config"
+	"github.com/teleport-network/teleport-relayer/app/services/bsc"
 	"github.com/teleport-network/teleport-relayer/app/services/eth"
 	"github.com/teleport-network/teleport-relayer/app/services/interfaces"
 	"github.com/teleport-network/teleport-relayer/app/services/tendermint"
@@ -11,6 +12,7 @@ import (
 
 const TendermintAndTendermint = "tendermint_and_tendermint"
 const TendermintAndETH = "tendermint_and_eth"
+const TendermintAndBsc = "tendermint_and_bsc"
 
 func NewChannelMap(cfg *config.Config, logger *logrus.Logger) map[string]IChannel {
 	if len(cfg.App.ChannelTypes) != 1 {
@@ -25,6 +27,10 @@ func NewChannelMap(cfg *config.Config, logger *logrus.Logger) map[string]IChanne
 		case TendermintAndETH:
 			sourceChain := tendermint.InitTendermintChain(&cfg.Chain.Source, logger)
 			destChain := eth.InitEthChain(&cfg.Chain.Dest, logger)
+			return MakeChannels(cfg, sourceChain, destChain, logger)
+		case TendermintAndBsc:
+			sourceChain := tendermint.InitTendermintChain(&cfg.Chain.Source, logger)
+			destChain := bsc.InitBscChain(&cfg.Chain.Dest, logger)
 			return MakeChannels(cfg, sourceChain, destChain, logger)
 		default:
 			logger.WithFields(logrus.Fields{"channel_type": channelType}).Fatal("CreateChannel type does not exist")

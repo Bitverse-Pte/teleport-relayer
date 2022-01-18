@@ -22,6 +22,7 @@ const ErrSleep = 3
 type IChannel interface {
 	Relay()
 	EthClientSync()
+	BscClientSync()
 	PacketSync()
 	DeleteRelayedPacket()
 }
@@ -96,6 +97,57 @@ func (c *Channel) Relay() {
 	}
 }
 
+func (c *Channel) BscClientSync() {
+	// todo ! add bsc client
+	defer func() {
+		if err := recover(); err != nil {
+			c.logger.Printf("BscClientSync  panic:%v", err)
+		}
+	}()
+	if c.chainA.ChainType() != types.BSC {
+		return
+	}
+	var updateHeight uint64
+	for {
+		chainAHeight, _ := c.chainA.GetLatestHeight()
+		if updateHeight >= chainAHeight {
+			time.Sleep(3 * ErrSleep * time.Second)
+			continue
+		}
+		clientState, err := c.chainB.GetLightClientState(c.chainA.ChainName())
+		if err != nil {
+			continue
+		}
+		updateHeight = clientState.GetLatestHeight().GetRevisionHeight() + 1
+		c.logger.Println("update client updateHeight:", updateHeight)
+		for {
+			var header exported.Header
+			req := &types.GetBlockHeaderReq{
+				LatestHeight:   updateHeight,
+				TrustedHeight:  clientState.GetLatestHeight().GetRevisionHeight(),
+				RevisionNumber: clientState.GetLatestHeight().GetRevisionNumber(),
+			}
+			t1 := time.Now()
+			header, err = c.chainA.GetBlockHeader(req)
+			if err != nil {
+				c.logger.Println("get blockHeader err", err)
+				continue
+			}
+			t2 := time.Now()
+			duration := t2.Sub(t1)
+			c.logger.Println("get BlockHeader duration:", duration)
+			if err = c.chainB.UpdateClient(header, c.chainA.ChainName()); err != nil {
+				if isBifurcate(err) {
+					updateHeight--
+					continue
+				}
+				c.logger.Printf("update client err:%+v", err)
+			}
+			break
+		}
+	}
+}
+
 func (c *Channel) EthClientSync() {
 	defer func() {
 		if err := recover(); err != nil {
@@ -149,7 +201,7 @@ func (c *Channel) EthClientSync() {
 func (c *Channel) PacketSync() {
 	for {
 		if err := c.packetSync(); err != nil {
-			c.logger.Printf("packetSync ERROR:%+v", err)
+			c.logger.Errorf("packetSync ERROR:%+v", err)
 			time.Sleep(ErrSleep * time.Second)
 		}
 	}
