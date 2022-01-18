@@ -1,9 +1,9 @@
 package bsc
 
 import (
-	"encoding/hex"
-	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/teleport-network/teleport-relayer/app/services/interfaces"
 	"github.com/teleport-network/teleport-relayer/app/types"
@@ -12,7 +12,6 @@ import (
 const (
 	testUrl = "https://data-seed-prebsc-1-s1.binance.org:8545/"
 	testId  = 97
-	epoch   = uint64(200)
 )
 
 func TestNewBsc(t *testing.T) {
@@ -23,42 +22,33 @@ func TestNewBsc(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log(latestHeight)
-	decodeString, err := hex.DecodeString("0a0f74656c65706f72745f393030302d311204080110031a051080ac8f04220510808ac4042a02100a32040801100a42060a0478696263")
-	if err != nil {
-		return
-	}
-	fmt.Println(string(decodeString))
 }
 
-func TestGetStatesJsons(t *testing.T) {
+func TestGetPackets(t *testing.T) {
 	bscClient := newBscClient(t)
-	latestHeight, err := bscClient.GetLatestHeight()
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	//todo gen Jsons
-	startHeight := latestHeight - latestHeight%epoch - epoch
-	t.Log("bsc height = ", startHeight)
+	packets, err := bscClient.GetPackets(15965605, "")
+	require.NoError(t, err)
+	require.NotNil(t, packets.BizPackets)
 }
 
 func newBscClient(t *testing.T) interfaces.IChain {
-	optPrivKey := "4f706b587618e242f45f9f67fb5cbb290902c7ff5828c468ee53138ef8a26945"
+	optPrivKey := "FB0536CF27B7F16EAB7F8BBD1771980E83ECE69F50BE30A7161D7E643645958D"
 
 	contractCfgGroup := NewContractCfgGroup()
-	contractCfgGroup.Packet.Addr = "0x2A212D09038c848A0d79a42E0Ab88B5FD8B1AD85"
-	contractCfgGroup.Packet.Topic = "PacketSent((uint64,string,string,string,string,bytes))"
+	contractCfgGroup.Packet.Addr = "0xA6a9AAB1c5E65e1a69cCCF59155ABaA0A555D955"
+	contractCfgGroup.Packet.Topic = "PacketSent((uint64,string,string,string,string[],bytes[]))"
 	contractCfgGroup.Packet.OptPrivKey = optPrivKey
 
-	contractCfgGroup.AckPacket.Addr = "0x2A212D09038c848A0d79a42E0Ab88B5FD8B1AD85"
-	contractCfgGroup.AckPacket.Topic = "AckWritten((uint64,string,string,string,string,bytes),bytes)"
+	contractCfgGroup.AckPacket.Addr = "0xA6a9AAB1c5E65e1a69cCCF59155ABaA0A555D955"
+	contractCfgGroup.AckPacket.Topic = "AckWritten((uint64,string,string,string,string[],bytes[]),bytes)"
 	contractCfgGroup.AckPacket.OptPrivKey = optPrivKey
 
-	contractCfgGroup.Client.Addr = "0x53176d71Ac1AD08cF5a7e54aF1EdF5657B2419eC"
+	contractCfgGroup.Client.Addr = "0x1012978EDB55F4eD2faEf5CE09cd64965AC38d17"
 	contractCfgGroup.Client.Topic = ""
 	contractCfgGroup.Client.OptPrivKey = optPrivKey
 
-	contractCfgGroup.Transfer.Addr = "0xD002C2fC0C1c0883F85eA1aa0305c7Fd7CD829e0"
+	contractCfgGroup.Transfer.Addr = "0x1b49147aB0099B8dc03d4a22B15EeAa9403Fa3ED"
 	contractCfgGroup.Transfer.Topic = "Transfer((string,uint256,string,string))"
 	contractCfgGroup.Transfer.OptPrivKey = optPrivKey
 	contractBindOptsCfg := NewContractBindOptsCfg()

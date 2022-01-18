@@ -42,6 +42,7 @@ func (a *App) Start() {
 		a.logger.Printf("relay packet for %s\n", chainName)
 		go channel.PacketSync()
 		go channel.EthClientSync()
+		go channel.BscClientSync()
 		go channel.Relay()
 		go channel.DeleteRelayedPacket()
 	}
