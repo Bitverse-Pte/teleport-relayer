@@ -15,4 +15,5 @@ make install
 
 ```bash
 relayer start -c config-qa.toml
+# default home, .teleport-relayer
 ```
