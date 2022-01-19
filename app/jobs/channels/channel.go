@@ -47,7 +47,7 @@ func NewChannel(
 	error,
 ) {
 	var startHeight uint64
-	state := cache.NewCacheFileWriter(config.DefaultHomePath, config.DefaultCacheDirName, cacheName)
+	state := cache.NewCacheFileWriter(config.Home, config.DefaultCacheDirName, cacheName)
 	stateData := state.LoadCache()
 	if source.ChainType() == types.Tendermint {
 		startHeight = height
@@ -72,7 +72,9 @@ func NewChannel(
 }
 
 func (c *Channel) UpdateHeight() {
-	_ = c.state.Write(c.relayHeight)
+	if err := c.state.Write(c.relayHeight);err != nil {
+		panic(err)
+	}
 }
 
 func (c *Channel) EvmClientUpdate() error {

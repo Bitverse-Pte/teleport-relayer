@@ -145,8 +145,11 @@ type (
 )
 
 func LoadConfigs() *Config {
+	if Home == "" {
+		Home = DefaultHomePath
+	}
 	if LocalConfig == "" {
-		LocalConfig = filepath.Join(DefaultHomePath, DefaultConfigDirName, DefaultConfigName)
+		LocalConfig = filepath.Join(Home, DefaultConfigDirName, DefaultConfigName)
 	}
 	cfg := Config{}
 	tools.InitTomlConfigs([]*tools.ConfigMap{

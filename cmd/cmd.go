@@ -44,6 +44,7 @@ func init() {
 	generateCmd.Flags().StringVarP(&config.Home, "home", "", "", "config path: .teleport-relayer")
 	batchCmd.Flags().StringVarP(&config.LocalConfig, "CONFIG", "c", "", "config path: /opt/local.toml")
 	startCmd.Flags().StringVarP(&config.LocalConfig, "CONFIG", "c", "", "config path: /opt/local.toml")
+	startCmd.Flags().StringVarP(&config.Home, "home", "", "", "config path: /opt/local.toml")
 	rootCmd.AddCommand(startCmd)
 	rootCmd.AddCommand(generateCmd)
 	rootCmd.AddCommand(configInitCmd)

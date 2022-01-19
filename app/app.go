@@ -19,8 +19,9 @@ type App struct {
 
 func NewApp() *App {
 	cfg := config.LoadConfigs()
+
 	logger := tools.NewLogrus(
-		filepath.Join(config.DefaultHomePath, "log"),
+		filepath.Join(config.Home, "log"),
 		cfg.Log.LogFileName,
 		time.Duration(24*cfg.Log.LogmaxAge)*time.Hour,
 		time.Duration(cfg.Log.LogrotationTime)*time.Hour,

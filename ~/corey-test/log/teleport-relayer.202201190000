@@ -1,0 +1,15 @@
+time="2022-01-19T14:22:30+08:00" level=info msg="1. service init relayers "
+time="2022-01-19T14:22:30+08:00" level=info msg=" init eth chain start" chain_name=
+time="2022-01-19T14:22:31+08:00" level=info msg="relay packet for teleport\n"
+time="2022-01-19T14:22:31+08:00" level=info msg="relay packet for test-eth\n"
+time="2022-01-19T14:22:31+08:00" level=info msg="start relay test-eth! height : 10016552"
+time="2022-01-19T14:22:31+08:00" level=info msg="start relay teleport! height : 27548"
+time="2022-01-19T14:23:45+08:00" level=info msg="1. service init relayers "
+time="2022-01-19T14:23:45+08:00" level=info msg=" init eth chain start" chain_name=
+time="2022-01-19T14:23:46+08:00" level=info msg="relay packet for teleport\n"
+time="2022-01-19T14:23:46+08:00" level=info msg="relay packet for test-eth\n"
+time="2022-01-19T14:23:46+08:00" level=info msg="start relay test-eth! height : 10016561"
+time="2022-01-19T14:23:46+08:00" level=info msg="start relay teleport! height : 23647"
+time="2022-01-19T14:24:00+08:00" level=info msg="start relay test-eth! height : 10016561"
+time="2022-01-19T14:24:00+08:00" level=info msg="start relay teleport! height : 23647"
+time="2022-01-19T14:24:20+08:00" level=info msg="start relay teleport! height : 23647"

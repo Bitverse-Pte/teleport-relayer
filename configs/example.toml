@@ -1,3 +1,4 @@
+
 [App]
 channel_types = ["tendermint_and_eth"]
 Env = "dev"
@@ -12,51 +13,48 @@ logrotation_time = 24
 
 [Chain.Dest]
 chain_type = "eth"
-enabled = true
 
 [Chain.Dest.Cache]
 filename = "destdata"
-start_height = 9955738
+start_height = 10016108
 
 [Chain.Dest.Eth]
 chain_id = 4
 chain_name = "test-eth"
-comment_slot = 104
-gas_limit = 4100000
-max_gas_price = 1500000000
+gas_limit = 5100000
+max_gas_price = 3000000000
 tip_coefficient = 0.2
-uri = "https://rinkeby.infura.io/v3/023f2af0f670457d9c4ea9cb524f0810"
+uri = "https://rinkeby.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
 Update_client_frequency = 2
 
 [Chain.Dest.Eth.Contracts]
 
 [Chain.Dest.Eth.Contracts.Ack_packet]
-Addr = "0x2fa48e39b5D28a5d1972a3B393274e3FfD98741e"
+Addr = "0xF7cb799aeC98F45775114a43b57f80ad95a18aD6"
 Opt_priv_key = "6995eddbc393d46b4bad576d1de73f5345782af4d003739176807ac3cbe969f6"
-Topic = "AckWritten((uint64,string,string,string,string,bytes),bytes)"
+Topic = "AckWritten((uint64,string,string,string,string[],bytes[]),bytes)"
 
 [Chain.Dest.Eth.Contracts.Client]
-Addr = "0xDf874e84E926b9f14bF7CAd9F438Be5c41344992"
+Addr = "0xbdB5D52C1F8BF7036D593A2A0fE5E6e48415a9fa"
 Opt_priv_key = "6995eddbc393d46b4bad576d1de73f5345782af4d003739176807ac3cbe969f6"
 Topic = ""
 
 [Chain.Dest.Eth.Contracts.Packet]
-Addr = "0x2fa48e39b5D28a5d1972a3B393274e3FfD98741e"
+Addr = "0xF7cb799aeC98F45775114a43b57f80ad95a18aD6"
 Opt_priv_key = "6995eddbc393d46b4bad576d1de73f5345782af4d003739176807ac3cbe969f6"
-Topic = "PacketSent((uint64,string,string,string,string,bytes))"
+Topic = "PacketSent((uint64,string,string,string,string[],bytes[]))"
 
 
 [Chain.Source]
 Chain_type = "tendermint"
-Enabled = true
 
 [Chain.Source.Cache]
 Filename = "sourcedata"
-start_height = 134249
+start_height = 23647
 
 
 [Chain.Source.Tendermint]
-Chain_id = "teleport_9000-1"
+Chain_id = "teleport_7001-1"
 Chain_name = "teleport"
 Clean_packet_enabled = true
 Gas = 0
