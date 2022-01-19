@@ -72,7 +72,7 @@ func NewChannel(
 }
 
 func (c *Channel) UpdateHeight() {
-	if err := c.state.Write(c.relayHeight);err != nil {
+	if err := c.state.Write(c.relayHeight); err != nil {
 		panic(err)
 	}
 }
@@ -89,6 +89,7 @@ func (c *Channel) EvmClientUpdate() error {
 	updateHeight := clientState.GetLatestHeight().GetRevisionHeight() + 1
 	if updateHeight >= chainAHeight {
 		return fmt.Errorf("updateHeight %v > chainA height %v,no use update", updateHeight, chainAHeight)
+		time.Sleep(20 * time.Second)
 	}
 	c.logger.Println("update client updateHeight:", updateHeight)
 	for {
