@@ -48,7 +48,7 @@ func (a *App) EvmClientSync() {
 	s := gocron.NewScheduler(time.UTC)
 	for chainName, channel := range a.channelMap {
 		a.logger.Printf("relay packet for %s\n", chainName)
-		s.Every(5).Seconds().Do(func() {
+		s.Every(10).Seconds().Do(func() {
 			if err := channel.EvmClientUpdate(); err != nil {
 				time.Sleep(10 * time.Second)
 			}
