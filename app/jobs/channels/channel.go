@@ -88,8 +88,8 @@ func (c *Channel) EvmClientUpdate() error {
 	}
 	updateHeight := clientState.GetLatestHeight().GetRevisionHeight() + 1
 	if updateHeight >= chainAHeight {
-		return fmt.Errorf("updateHeight %v > chainA height %v,no use update", updateHeight, chainAHeight)
 		time.Sleep(20 * time.Second)
+		return fmt.Errorf("updateHeight %v > chainA height %v,no use update", updateHeight, chainAHeight)
 	}
 	c.logger.Println("update client updateHeight:", updateHeight)
 	for {
