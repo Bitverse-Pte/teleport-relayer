@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/teleport-network/teleport-relayer/app/chains/eth/contracts/transfer"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/teleport-network/teleport-relayer/app/services/eth/contracts/transfer"
 	"github.com/teleport-network/teleport-relayer/app/types"
 )
 

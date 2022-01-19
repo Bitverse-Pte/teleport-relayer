@@ -3,9 +3,10 @@ package bsc
 import (
 	"testing"
 
+	interfaces2 "github.com/teleport-network/teleport-relayer/app/interfaces"
+
 	"github.com/stretchr/testify/require"
 
-	"github.com/teleport-network/teleport-relayer/app/services/interfaces"
 	"github.com/teleport-network/teleport-relayer/app/types"
 )
 
@@ -32,7 +33,7 @@ func TestGetPackets(t *testing.T) {
 	require.NotNil(t, packets.BizPackets)
 }
 
-func newBscClient(t *testing.T) interfaces.IChain {
+func newBscClient(t *testing.T) interfaces2.IChain {
 	optPrivKey := "FB0536CF27B7F16EAB7F8BBD1771980E83ECE69F50BE30A7161D7E643645958D"
 
 	contractCfgGroup := NewContractCfgGroup()

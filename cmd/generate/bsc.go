@@ -7,6 +7,8 @@ import (
 	"io"
 	"math/big"
 
+	"github.com/teleport-network/teleport-relayer/app/chains/tendermint"
+
 	"golang.org/x/crypto/sha3"
 
 	"github.com/sirupsen/logrus"
@@ -17,10 +19,10 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	"github.com/teleport-network/teleport-relayer/app/config"
-	"github.com/teleport-network/teleport-relayer/app/services/tendermint"
 	xibcbsc "github.com/teleport-network/teleport/x/xibc/clients/light-clients/bsc/types"
 	clienttypes "github.com/teleport-network/teleport/x/xibc/core/client/types"
+
+	"github.com/teleport-network/teleport-relayer/app/config"
 )
 
 const epoch = uint64(200)
@@ -39,7 +41,7 @@ func generateBscJson(cfg *config.ChainCfg, tmClient *tendermint.Tendermint, logg
 		logger.Fatal(err)
 	}
 
-	startHeight := latestHeight - latestHeight%epoch - 2*epoch
+	startHeight := latestHeight - latestHeight%epoch
 	logger.Info("bsc height = ", startHeight)
 
 	blockRes, err := ethClient.BlockByNumber(

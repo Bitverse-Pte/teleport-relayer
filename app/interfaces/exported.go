@@ -2,15 +2,12 @@ package interfaces
 
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
-
 	"github.com/teleport-network/teleport/x/xibc/exported"
 
-	"github.com/teleport-network/teleport-relayer/app/services/model"
 	"github.com/teleport-network/teleport-relayer/app/types"
 )
 
 type IChain interface {
-	GetCrossChainPacketsByHeight(height uint64, destChainType string) ([]model.CrossPacket, error)
 	GetPackets(height uint64, destChainType string) (*types.Packets, error) // TODO update eth interface
 	GetProof(sourChainName, destChainName string, sequence uint64, height uint64, typ string) ([]byte, error)
 	RelayPackets(msgs []sdk.Msg) error

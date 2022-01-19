@@ -1,4 +1,4 @@
-package bsc
+package eth
 
 import (
 	"bytes"
@@ -9,22 +9,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/teleport-network/teleport-relayer/app/chains/eth/contracts"
+	"github.com/teleport-network/teleport-relayer/app/chains/eth/contracts/transfer"
+	interfaces2 "github.com/teleport-network/teleport-relayer/app/interfaces"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/teleport-network/teleport-relayer/app/services/bsc/contracts"
-	"github.com/teleport-network/teleport-relayer/app/services/bsc/contracts/transfer"
-	"github.com/teleport-network/teleport-relayer/app/services/interfaces"
-	"github.com/teleport-network/teleport-relayer/app/services/model"
-	"github.com/teleport-network/teleport-relayer/app/types"
-	"github.com/teleport-network/teleport-relayer/app/types/errors"
-	xibcbsc "github.com/teleport-network/teleport/x/xibc/clients/light-clients/bsc/types"
-	xibctendermint "github.com/teleport-network/teleport/x/xibc/clients/light-clients/tendermint/types"
-	clienttypes "github.com/teleport-network/teleport/x/xibc/core/client/types"
-	"github.com/teleport-network/teleport/x/xibc/core/host"
-	packettypes "github.com/teleport-network/teleport/x/xibc/core/packet/types"
-	"github.com/teleport-network/teleport/x/xibc/exported"
-
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -33,16 +25,33 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/ethclient/gethclient"
 	"github.com/ethereum/go-ethereum/rpc"
+
+	xibceth "github.com/teleport-network/teleport/x/xibc/clients/light-clients/eth/types"
+	xibctendermint "github.com/teleport-network/teleport/x/xibc/clients/light-clients/tendermint/types"
+	clienttypes "github.com/teleport-network/teleport/x/xibc/core/client/types"
+	"github.com/teleport-network/teleport/x/xibc/core/host"
+	packettypes "github.com/teleport-network/teleport/x/xibc/core/packet/types"
+	"github.com/teleport-network/teleport/x/xibc/exported"
+
+	"github.com/teleport-network/teleport-relayer/app/types"
+	"github.com/teleport-network/teleport-relayer/app/types/errors"
 )
 
-var _ interfaces.IChain = new(Bsc)
+var _ interfaces2.IChain = new(Eth)
 
 const CtxTimeout = 100 * time.Second
 const TryGetGasPriceTimeInterval = 10 * time.Second
 const RetryTimeout = 15 * time.Second
 const RetryTimes = 20
 
-type Bsc struct {
+var (
+	Uint64, _  = abi.NewType("uint64", "", nil)
+	Bytes32, _ = abi.NewType("bytes32", "", nil)
+	Bytes, _   = abi.NewType("bytes", "", nil)
+	String, _  = abi.NewType("string", "", nil)
+)
+
+type Eth struct {
 	// uri                   string
 	chainName             string
 	chainType             string
@@ -58,11 +67,11 @@ type Bsc struct {
 	gethRpcCli            *rpc.Client
 }
 
-func NewBsc(config *ChainConfig) (interfaces.IChain, error) {
-	return newBsc(config)
+func NewEth(config *ChainConfig) (interfaces2.IChain, error) {
+	return newEth(config)
 }
 
-func newBsc(config *ChainConfig) (*Bsc, error) {
+func newEth(config *ChainConfig) (*Eth, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CtxTimeout)
 	defer cancel()
 	rpcClient, err := rpc.DialContext(ctx, config.ChainURI)
@@ -82,7 +91,7 @@ func newBsc(config *ChainConfig) (*Bsc, error) {
 		return nil, err
 	}
 
-	return &Bsc{
+	return &Eth{
 		chainType:             config.ChainType,
 		chainName:             config.ChainName,
 		updateClientFrequency: config.UpdateClientFrequency,
@@ -98,81 +107,27 @@ func newBsc(config *ChainConfig) (*Bsc, error) {
 	}, nil
 }
 
-func (b Bsc) GetCrossChainPacketsByHeight(height uint64, destChainType string) ([]model.CrossPacket, error) {
-	// TODO
-	return nil, nil
+func (eth *Eth) TransferERC20(transferData transfer.TransferDataTypesERC20TransferData) error {
+	resultTx := &types.ResultTx{}
+	if err := eth.setPacketOpts(); err != nil {
+		return err
+	}
+	result, err := eth.contracts.Transfer.SendTransferERC20(eth.bindOpts.packetTransactOpts, transferData)
+	if err != nil {
+		return err
+	}
+	resultTx.GasUsed += int64(result.Gas())
+	resultTx.Hash = resultTx.Hash + "," + result.Hash().String()
+	return eth.reTryEthResult(resultTx.Hash, 0)
 }
 
-func (b Bsc) GetPackets(height uint64, destChainType string) (*types.Packets, error) {
-	bizPackets, err := b.getPackets(height)
-	if err != nil {
-		return nil, err
-	}
-	ackPackets, err := b.getAckPackets(height)
-	if err != nil {
-		return nil, err
-	}
-
-	packets := &types.Packets{
-		BizPackets: bizPackets,
-		AckPackets: ackPackets,
-	}
-
-	return packets, nil
-}
-
-func (b Bsc) GetProof(sourChainName, destChainName string, sequence uint64, height uint64, typ string) ([]byte, error) {
-	pkConstr := xibcbsc.NewProofKeyConstructor(sourChainName, destChainName, sequence)
-	var key []byte
-	switch typ {
-	case types.CommitmentPoof:
-		//key = pkConstr.GetPacketCommitmentProofKey(eth.slot)
-		key = pkConstr.GetPacketCommitmentProofKey()
-	case types.AckProof:
-		//key = pkConstr.GetAckProofKey(bsc.slot)
-		key = pkConstr.GetAckProofKey()
-	default:
-		return nil, errors.ErrGetProof
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), CtxTimeout)
-	defer cancel()
-	address := common.HexToAddress(b.contractCfgGroup.Packet.Addr)
-	result, err := b.getProof(ctx, address, []string{hexutil.Encode(key)}, new(big.Int).SetUint64(height))
-	if err != nil {
-		return nil, err
-	}
-
-	var storageProof []*xibcbsc.StorageResult
-	for _, sp := range result.StorageProof {
-		tmpStorageProof := &xibcbsc.StorageResult{
-			Key:   sp.Key,
-			Value: hexutil.EncodeBig(sp.Value),
-			Proof: sp.Proof,
-		}
-		storageProof = append(storageProof, tmpStorageProof)
-	}
-	nonce := hexutil.EncodeUint64(result.Nonce)
-	balance := hexutil.EncodeBig(result.Balance)
-	proof := &xibcbsc.Proof{
-		Address:      result.Address.String(),
-		Balance:      balance,
-		CodeHash:     result.CodeHash.String(),
-		Nonce:        nonce,
-		StorageHash:  result.StorageHash.String(),
-		AccountProof: result.AccountProof,
-		StorageProof: storageProof,
-	}
-
-	return json.Marshal(proof)
-}
-
-func (b Bsc) RelayPackets(msgs []sdk.Msg) error {
+func (eth *Eth) RelayPackets(msgs []sdk.Msg) error {
 	resultTx := &types.ResultTx{}
 	for _, d := range msgs {
 		switch msg := d.(type) {
 		case *packettypes.MsgRecvPacket:
 			//msg := d.(*packet.MsgRecvPacket)
-			isNotReceipt, err := b.GetReceiptPacket(msg.Packet.SourceChain, msg.Packet.DestinationChain, msg.Packet.Sequence)
+			isNotReceipt, err := eth.GetReceiptPacket(msg.Packet.SourceChain, msg.Packet.DestinationChain, msg.Packet.Sequence)
 			if err != nil {
 				return err
 			}
@@ -193,11 +148,11 @@ func (b Bsc) RelayPackets(msgs []sdk.Msg) error {
 				RevisionHeight: msg.ProofHeight.RevisionHeight,
 			}
 
-			if err = b.setPacketOpts(); err != nil {
+			if err = eth.setPacketOpts(); err != nil {
 				return err
 			}
-			result, err := b.contracts.Packet.RecvPacket(
-				b.bindOpts.packetTransactOpts,
+			result, err := eth.contracts.Packet.RecvPacket(
+				eth.bindOpts.packetTransactOpts,
 				tmpPack,
 				msg.ProofCommitment,
 				height,
@@ -208,7 +163,7 @@ func (b Bsc) RelayPackets(msgs []sdk.Msg) error {
 			resultTx.Hash += "," + result.Hash().String()
 
 		case *packettypes.MsgAcknowledgement:
-			isNotReceipt, err := b.GetReceiptPacket(msg.Packet.SourceChain, msg.Packet.DestinationChain, msg.Packet.Sequence)
+			isNotReceipt, err := eth.GetReceiptPacket(msg.Packet.SourceChain, msg.Packet.DestinationChain, msg.Packet.Sequence)
 			if err != nil {
 				return err
 			}
@@ -229,12 +184,12 @@ func (b Bsc) RelayPackets(msgs []sdk.Msg) error {
 				RevisionHeight: msg.ProofHeight.RevisionHeight,
 			}
 
-			if err = b.setPacketOpts(); err != nil {
+			if err = eth.setPacketOpts(); err != nil {
 				return err
 			}
 
-			result, err := b.contracts.Packet.AcknowledgePacket(
-				b.bindOpts.packetTransactOpts,
+			result, err := eth.contracts.Packet.AcknowledgePacket(
+				eth.bindOpts.packetTransactOpts,
 				tmpPack, msg.Acknowledgement, msg.ProofAcked,
 				height,
 			)
@@ -245,14 +200,106 @@ func (b Bsc) RelayPackets(msgs []sdk.Msg) error {
 		}
 	}
 	resultTx.Hash = strings.Trim(resultTx.Hash, ",")
-	if err := b.reTryEthResult(resultTx.Hash, 0); err != nil {
+	if err := eth.reTryEthResult(resultTx.Hash, 0); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (b Bsc) GetCommitmentsPacket(sourChainName, destChainName string, sequence uint64) error {
-	hashBytes, err := b.contracts.Packet.Commitments(nil, host.PacketCommitmentKey(sourChainName, destChainName, sequence))
+func (eth *Eth) UpdateClient(header exported.Header, chainName string) error {
+	h, ok := header.(*xibctendermint.Header)
+	if !ok {
+		return fmt.Errorf("invalid header type")
+	}
+	headerBytes, _ := h.Marshal()
+	if err := eth.setClientOpts(); err != nil {
+		return err
+	}
+	result, err := eth.contracts.Client.UpdateClient(eth.bindOpts.client, chainName, headerBytes)
+	if err != nil {
+		return err
+	}
+	if err := eth.reTryEthResult(result.Hash().String(), 0); err != nil {
+		return err // TODO: warp
+	}
+	return nil
+}
+
+func (eth *Eth) reTryEthResult(hash string, n uint64) error {
+	if n == RetryTimes {
+		return fmt.Errorf("retry %d times and return error", RetryTimes)
+	}
+	txStatus, err := eth.GetResult(hash)
+	if err != nil {
+		time.Sleep(RetryTimeout)
+		return eth.reTryEthResult(hash, n+1)
+	}
+	if txStatus == 0 {
+		return fmt.Errorf("txStatus == 0, tx failed")
+	}
+	return nil
+}
+
+func (eth *Eth) GetPackets(height uint64, destChainType string) (*types.Packets, error) {
+	bizPackets, err := eth.getPackets(height)
+	if err != nil {
+		return nil, err
+	}
+	ackPackets, err := eth.getAckPackets(height)
+	if err != nil {
+		return nil, err
+	}
+	packets := &types.Packets{
+		BizPackets: bizPackets,
+		AckPackets: ackPackets,
+	}
+	return packets, nil
+}
+
+func (eth *Eth) GetProof(sourChainName, destChainName string, sequence uint64, height uint64, typ string) ([]byte, error) {
+	pkConstr := xibceth.NewProofKeyConstructor(sourChainName, destChainName, sequence)
+	var key []byte
+	switch typ {
+	case types.CommitmentPoof:
+		key = pkConstr.GetPacketCommitmentProofKey()
+	case types.AckProof:
+		key = pkConstr.GetAckProofKey()
+	default:
+		return nil, errors.ErrGetProof
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), CtxTimeout)
+	defer cancel()
+	address := common.HexToAddress(eth.contractCfgGroup.Packet.Addr)
+	result, err := eth.getProof(ctx, address, []string{hexutil.Encode(key)}, new(big.Int).SetUint64(height))
+	if err != nil {
+		return nil, err
+	}
+
+	var storageProof []*xibceth.StorageResult
+	for _, sp := range result.StorageProof {
+		tmpStorageProof := &xibceth.StorageResult{
+			Key:   sp.Key,
+			Value: hexutil.EncodeBig(sp.Value),
+			Proof: sp.Proof,
+		}
+		storageProof = append(storageProof, tmpStorageProof)
+	}
+	nonce := hexutil.EncodeUint64(result.Nonce)
+	balance := hexutil.EncodeBig(result.Balance)
+	proof := &xibceth.Proof{
+		Address:      result.Address.String(),
+		Balance:      balance,
+		CodeHash:     result.CodeHash.String(),
+		Nonce:        nonce,
+		StorageHash:  result.StorageHash.String(),
+		AccountProof: result.AccountProof,
+		StorageProof: storageProof,
+	}
+	return json.Marshal(proof)
+}
+
+func (eth *Eth) GetCommitmentsPacket(sourChainName, destChainName string, sequence uint64) error {
+	hashBytes, err := eth.contracts.Packet.Commitments(nil, host.PacketCommitmentKey(sourChainName, destChainName, sequence))
 	if err != nil {
 		return err
 	}
@@ -263,51 +310,53 @@ func (b Bsc) GetCommitmentsPacket(sourChainName, destChainName string, sequence 
 	return nil
 }
 
-func (b Bsc) GetReceiptPacket(sourChainName, destChainName string, sequence uint64) (bool, error) {
-	return b.contracts.Packet.Receipts(nil, host.PacketReceiptKey(sourChainName, destChainName, sequence))
+func (eth *Eth) GetReceiptPacket(sourChainName, destChainName string, sequence uint64) (bool, error) {
+	return eth.contracts.Packet.Receipts(nil, host.PacketReceiptKey(sourChainName, destChainName, sequence))
 }
 
-func (b Bsc) GetBlockHeader(req *types.GetBlockHeaderReq) (exported.Header, error) {
+func (eth *Eth) GetBlockTimestamp(height uint64) (uint64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CtxTimeout)
 	defer cancel()
-	blockRes, err := b.ethClient.BlockByNumber(ctx, new(big.Int).SetUint64(req.LatestHeight))
-	if err != nil {
-		return nil, err
-	}
-	header := blockRes.Header()
-	bscHeader := &xibcbsc.BscHeader{
-		ParentHash:  header.ParentHash,
-		UncleHash:   header.UncleHash,
-		Coinbase:    header.Coinbase,
-		Root:        header.Root,
-		TxHash:      header.TxHash,
-		ReceiptHash: header.ReceiptHash,
-		Bloom:       xibcbsc.Bloom(header.Bloom),
-		Difficulty:  header.Difficulty,
-		Number:      header.Number,
-		GasLimit:    header.GasLimit,
-		GasUsed:     header.GasUsed,
-		Time:        header.Time,
-		Extra:       header.Extra,
-		MixDigest:   header.MixDigest,
-		Nonce:       xibcbsc.BlockNonce(header.Nonce),
-	}
-	protoHeader := bscHeader.ToHeader()
-	return &protoHeader, nil
-}
-
-func (b Bsc) GetBlockTimestamp(height uint64) (uint64, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), CtxTimeout)
-	defer cancel()
-	blockRes, err := b.ethClient.BlockByNumber(ctx, new(big.Int).SetUint64(height))
+	blockRes, err := eth.ethClient.BlockByNumber(ctx, new(big.Int).SetUint64(height))
 	if err != nil {
 		return 0, err
 	}
 	return blockRes.Time(), nil
 }
 
-func (b Bsc) GetLightClientState(chainName string) (exported.ClientState, error) {
-	latestHeight, err := b.contracts.Client.GetLatestHeight(nil, chainName)
+func (eth *Eth) GetBlockHeader(req *types.GetBlockHeaderReq) (exported.Header, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), CtxTimeout)
+	defer cancel()
+	blockRes, err := eth.ethClient.BlockByNumber(ctx, new(big.Int).SetUint64(req.LatestHeight))
+	if err != nil {
+		return nil, err
+	}
+	return &xibceth.Header{
+		ParentHash:  blockRes.ParentHash().Bytes(),
+		UncleHash:   blockRes.UncleHash().Bytes(),
+		Coinbase:    blockRes.Coinbase().Bytes(),
+		Root:        blockRes.Root().Bytes(),
+		TxHash:      blockRes.TxHash().Bytes(),
+		ReceiptHash: blockRes.ReceiptHash().Bytes(),
+		Bloom:       blockRes.Bloom().Bytes(),
+		Difficulty:  blockRes.Difficulty().Bytes(),
+		Height: clienttypes.Height{
+			RevisionNumber: req.RevisionNumber,
+			RevisionHeight: req.LatestHeight,
+		},
+		GasLimit:  blockRes.GasLimit(),
+		GasUsed:   blockRes.GasUsed(),
+		Time:      blockRes.Time(),
+		Extra:     blockRes.Extra(),
+		MixDigest: blockRes.MixDigest().Bytes(),
+		Nonce:     blockRes.Nonce(),
+		BaseFee:   blockRes.BaseFee().Bytes(),
+	}, nil
+
+}
+
+func (eth *Eth) GetLightClientState(chainName string) (exported.ClientState, error) {
+	latestHeight, err := eth.contracts.Client.GetLatestHeight(nil, chainName)
 	if err != nil {
 		return nil, err
 	}
@@ -319,68 +368,49 @@ func (b Bsc) GetLightClientState(chainName string) (exported.ClientState, error)
 	}, nil
 }
 
-func (b Bsc) GetLightClientConsensusState(chainName string, Height uint64) (exported.ConsensusState, error) {
+func (eth *Eth) GetLightClientConsensusState(string, uint64) (exported.ConsensusState, error) {
 	return nil, nil
 }
 
-func (b Bsc) GetLatestHeight() (uint64, error) {
+func (eth *Eth) GetLatestHeight() (uint64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CtxTimeout)
 	defer cancel()
-	return b.ethClient.BlockNumber(ctx)
+	return eth.ethClient.BlockNumber(ctx)
 }
 
-func (b Bsc) GetLightClientDelayHeight(s string) (uint64, error) {
+func (eth *Eth) GetLightClientDelayHeight(chainName string) (uint64, error) {
 	return 0, nil
 }
 
-func (b Bsc) GetLightClientDelayTime(s string) (uint64, error) {
+func (eth *Eth) GetLightClientDelayTime(chainName string) (uint64, error) {
 	return 0, nil
 }
 
-func (b Bsc) UpdateClient(header exported.Header, chainName string) error {
-	h, ok := header.(*xibctendermint.Header)
-	if !ok {
-		return fmt.Errorf("invalid header type")
-	}
-	headerBytes, _ := h.Marshal()
-	if err := b.setClientOpts(); err != nil {
-		return err
-	}
-	result, err := b.contracts.Client.UpdateClient(b.bindOpts.client, chainName, headerBytes)
-	if err != nil {
-		return err
-	}
-	if err := b.reTryEthResult(result.Hash().String(), 0); err != nil {
-		return err // TODO: warp
-	}
-	return nil
-}
-
-func (b Bsc) GetResult(hash string) (uint64, error) {
+func (eth *Eth) GetResult(hash string) (uint64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CtxTimeout)
 	defer cancel()
 
 	cmnHash := common.HexToHash(hash)
-	result, err := b.ethClient.TransactionReceipt(ctx, cmnHash)
+	result, err := eth.ethClient.TransactionReceipt(ctx, cmnHash)
 	if err != nil {
 		return 0, err
 	}
 	return result.Status, nil
 }
 
-func (b Bsc) ChainName() string {
-	return b.chainName
+func (eth *Eth) ChainName() string {
+	return eth.chainName
 }
 
-func (b Bsc) UpdateClientFrequency() uint64 {
-	return b.updateClientFrequency
+func (eth *Eth) UpdateClientFrequency() uint64 {
+	return eth.updateClientFrequency
 }
 
-func (b Bsc) ChainType() string {
-	return types.BSC
+func (eth *Eth) ChainType() string {
+	return eth.chainType
 }
 
-func (b *Bsc) getProof(ctx context.Context, account common.Address, keys []string, blockNumber *big.Int) (*gethclient.AccountResult, error) {
+func (eth *Eth) getProof(ctx context.Context, account common.Address, keys []string, blockNumber *big.Int) (*gethclient.AccountResult, error) {
 	type storageResult struct {
 		Key   string       `json:"key"`
 		Value *hexutil.Big `json:"value"`
@@ -398,7 +428,7 @@ func (b *Bsc) getProof(ctx context.Context, account common.Address, keys []strin
 	}
 
 	var res accountResult
-	if err := b.gethRpcCli.CallContext(ctx, &res, "eth_getProof", account, keys, toBlockNumArg(blockNumber)); err != nil {
+	if err := eth.gethRpcCli.CallContext(ctx, &res, "eth_getProof", account, keys, toBlockNumArg(blockNumber)); err != nil {
 		return nil, err
 	}
 
@@ -424,21 +454,6 @@ func (b *Bsc) getProof(ctx context.Context, account common.Address, keys []strin
 	return result, nil
 }
 
-func (b *Bsc) reTryEthResult(hash string, n uint64) error {
-	if n == RetryTimes {
-		return fmt.Errorf("retry %d times and return error", RetryTimes)
-	}
-	txStatus, err := b.GetResult(hash)
-	if err != nil {
-		time.Sleep(RetryTimeout)
-		return b.reTryEthResult(hash, n+1)
-	}
-	if txStatus == 0 {
-		return fmt.Errorf("txStatus == 0,tx failed")
-	}
-	return nil
-}
-
 func toBlockNumArg(number *big.Int) string {
 	if number == nil {
 		return "latest"
@@ -450,17 +465,17 @@ func toBlockNumArg(number *big.Int) string {
 }
 
 // get packets from block
-func (b *Bsc) getPackets(height uint64) ([]packettypes.Packet, error) {
-	address := common.HexToAddress(b.contractCfgGroup.Packet.Addr)
-	topic := b.contractCfgGroup.Packet.Topic
-	logs, err := b.getLogs(address, topic, height, height)
+func (eth *Eth) getPackets(height uint64) ([]packettypes.Packet, error) {
+	address := common.HexToAddress(eth.contractCfgGroup.Packet.Addr)
+	topic := eth.contractCfgGroup.Packet.Topic
+	logs, err := eth.getLogs(address, topic, height, height)
 	if err != nil {
 		return nil, err
 	}
 
 	var bizPackets []packettypes.Packet
 	for _, log := range logs {
-		packSent, err := b.contracts.Packet.ParsePacketSent(log)
+		packSent, err := eth.contracts.Packet.ParsePacketSent(log)
 		if err != nil {
 			return nil, err
 		}
@@ -479,17 +494,17 @@ func (b *Bsc) getPackets(height uint64) ([]packettypes.Packet, error) {
 }
 
 // get ack packets from block
-func (b *Bsc) getAckPackets(height uint64) ([]types.AckPacket, error) {
-	address := common.HexToAddress(b.contractCfgGroup.AckPacket.Addr)
-	topic := b.contractCfgGroup.AckPacket.Topic
-	logs, err := b.getLogs(address, topic, height, height)
+func (eth *Eth) getAckPackets(height uint64) ([]types.AckPacket, error) {
+	address := common.HexToAddress(eth.contractCfgGroup.AckPacket.Addr)
+	topic := eth.contractCfgGroup.AckPacket.Topic
+	logs, err := eth.getLogs(address, topic, height, height)
 	if err != nil {
 		return nil, err
 	}
 
 	var ackPackets []types.AckPacket
 	for _, log := range logs {
-		ackWritten, err := b.contracts.Packet.ParseAckWritten(log)
+		ackWritten, err := eth.contracts.Packet.ParseAckWritten(log)
 		if err != nil {
 			return nil, err
 		}
@@ -508,67 +523,83 @@ func (b *Bsc) getAckPackets(height uint64) ([]types.AckPacket, error) {
 	return ackPackets, nil
 }
 
-func (b *Bsc) getLogs(address common.Address, topic string, fromBlock, toBlock uint64) ([]ethtypes.Log, error) {
+func (eth *Eth) getLogs(address common.Address, topic string, fromBlock, toBlock uint64) ([]ethtypes.Log, error) {
 	filter := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(fromBlock),
 		ToBlock:   new(big.Int).SetUint64(toBlock),
 		Addresses: []common.Address{address},
 		Topics:    [][]common.Hash{{ethcrypto.Keccak256Hash([]byte(topic))}},
 	}
-	return b.ethClient.FilterLogs(context.Background(), filter)
+	return eth.ethClient.FilterLogs(context.Background(), filter)
 }
 
-func (b *Bsc) getGasPrice() (*big.Int, error) {
+func (eth *Eth) getGasPrice() (*big.Int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CtxTimeout)
 	defer cancel()
-	return b.ethClient.SuggestGasPrice(ctx)
+	return eth.ethClient.SuggestGasPrice(ctx)
 
 }
 
-func (b *Bsc) setPacketOpts() error {
+func (eth *Eth) setPacketOpts() error {
 	var curGasPrice *big.Int
 	for {
-		gasPrice, err := b.getGasPrice()
+		gasPrice, err := eth.getGasPrice()
 		if err != nil {
 			return err
 		}
-		cmpRes := b.maxGasPrice.Cmp(gasPrice)
+		cmpRes := eth.maxGasPrice.Cmp(gasPrice)
 		if cmpRes == -1 {
 			time.Sleep(TryGetGasPriceTimeInterval)
 			continue
 		} else {
 			gasPriceUint := gasPrice.Int64()
-			gasPriceUint += int64(float64(gasPriceUint) * b.tipCoefficient)
+			gasPriceUint += int64(float64(gasPriceUint) * eth.tipCoefficient)
 			curGasPrice = new(big.Int).SetInt64(gasPriceUint)
 			break
 		}
 	}
 
-	b.bindOpts.packetTransactOpts.GasPrice = curGasPrice
+	eth.bindOpts.packetTransactOpts.GasPrice = curGasPrice
 	return nil
 }
 
-func (b *Bsc) setClientOpts() error {
+func (eth *Eth) setClientOpts() error {
 	var curGasPrice *big.Int
 	for {
-		gasPrice, err := b.getGasPrice()
+		gasPrice, err := eth.getGasPrice()
 		if err != nil {
 			return err
 		}
-		cmpRes := b.maxGasPrice.Cmp(gasPrice)
+		cmpRes := eth.maxGasPrice.Cmp(gasPrice)
 		if cmpRes == -1 {
 			continue
 		} else {
 			gasPriceUint := gasPrice.Int64()
-			gasPriceUint += int64(float64(gasPriceUint) * b.tipCoefficient)
+			gasPriceUint += int64(float64(gasPriceUint) * eth.tipCoefficient)
 			curGasPrice = new(big.Int).SetInt64(gasPriceUint)
 			break
 		}
 	}
 
-	b.bindOpts.client.GasPrice = curGasPrice
+	eth.bindOpts.client.GasPrice = curGasPrice
 	return nil
 }
+
+// func (eth *Eth) setTransferOpts() error {
+// 	var curGasPrice *big.Int
+// 	for {
+// 		gasPrice, err := eth.getGasPrice()
+// 		if err != nil {
+// 			return err
+// 		}
+// 		if eth.maxGasPrice.Cmp(gasPrice) != -1 {
+// 			break
+// 		}
+// 	}
+
+// 	eth.bindOpts.client.GasPrice = curGasPrice
+// 	return nil
+// }
 
 // ==================================================================================================================
 // contract bind opts

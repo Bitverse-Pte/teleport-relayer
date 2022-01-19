@@ -7,10 +7,11 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/teleport-network/teleport-relayer/app/chains/tendermint"
+
 	"github.com/sirupsen/logrus"
 
 	"github.com/teleport-network/teleport-relayer/app/config"
-	"github.com/teleport-network/teleport-relayer/app/services/tendermint"
 )
 
 const (

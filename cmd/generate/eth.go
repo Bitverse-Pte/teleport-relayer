@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/teleport-network/teleport-relayer/app/chains/tendermint"
+
 	"github.com/sirupsen/logrus"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -15,7 +17,6 @@ import (
 	clienttypes "github.com/teleport-network/teleport/x/xibc/core/client/types"
 
 	"github.com/teleport-network/teleport-relayer/app/config"
-	"github.com/teleport-network/teleport-relayer/app/services/tendermint"
 )
 
 func generateETHJson(cfg *config.ChainCfg, tmClient *tendermint.Tendermint, logger *logrus.Entry) {

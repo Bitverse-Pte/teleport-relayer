@@ -7,15 +7,9 @@ import (
 func online() {
 	a := app.NewApp()
 	a.Start()
-
 }
 
-func ethClientSync() {
+func evmClientSync() {
 	a := app.NewApp()
-	a.EthClientSync()
-}
-
-func bscClientSync() {
-	a := app.NewApp()
-	a.BscClientSync()
+	a.EvmClientSync()
 }

@@ -3,12 +3,13 @@ package eth
 import (
 	log "github.com/sirupsen/logrus"
 
+	interfaces2 "github.com/teleport-network/teleport-relayer/app/interfaces"
+
 	"github.com/teleport-network/teleport-relayer/app/config"
-	"github.com/teleport-network/teleport-relayer/app/services/interfaces"
 	"github.com/teleport-network/teleport-relayer/app/types"
 )
 
-func InitEthChain(cfg *config.ChainCfg, logger *log.Logger) interfaces.IChain {
+func InitEthChain(cfg *config.ChainCfg, logger *log.Logger) interfaces2.IChain {
 	loggerEntry := logger.WithFields(log.Fields{
 		"chain_name": cfg.Tendermint.ChainName,
 	})

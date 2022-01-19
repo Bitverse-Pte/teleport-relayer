@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/teleport-network/teleport-relayer/app/chains/tendermint"
+
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -17,7 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/sirupsen/logrus"
 
-	"github.com/teleport-network/teleport-relayer/app/services/tendermint"
 	xibceth "github.com/teleport-network/teleport/x/xibc/clients/light-clients/eth/types"
 	xibctendermint "github.com/teleport-network/teleport/x/xibc/clients/light-clients/tendermint/types"
 	clienttypes "github.com/teleport-network/teleport/x/xibc/core/client/types"

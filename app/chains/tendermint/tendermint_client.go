@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"time"
 
+	interfaces2 "github.com/teleport-network/teleport-relayer/app/interfaces"
+
 	"github.com/gogo/protobuf/proto"
 
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -40,13 +42,11 @@ import (
 	"github.com/teleport-network/teleport/x/xibc/exported"
 
 	"github.com/teleport-network/teleport-relayer/app/config"
-	"github.com/teleport-network/teleport-relayer/app/services/interfaces"
-	"github.com/teleport-network/teleport-relayer/app/services/model"
 	"github.com/teleport-network/teleport-relayer/app/types"
 	"github.com/teleport-network/teleport-relayer/app/types/errors"
 )
 
-var _ interfaces.IChain = new(Tendermint)
+var _ interfaces2.IChain = new(Tendermint)
 
 var (
 	maxRetryAttempts    = 5
@@ -133,71 +133,6 @@ func (c *Tendermint) GetPackets(height uint64, destChainType string) (*types.Pac
 	packets.BizPackets = bizPackets
 	packets.AckPackets = ackPackets
 	return &packets, nil
-}
-
-func (c *Tendermint) GetCrossChainPacketsByHeight(height uint64, destChainType string) ([]model.CrossPacket, error) {
-	res, err := c.TeleportSDK.TMServiceQuery.GetBlockByHeight(
-		context.Background(),
-		&tmservice.GetBlockByHeightRequest{Height: int64(height)},
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	var crossChainTxs []model.CrossPacket
-	for _, t := range res.Block.GetData().Txs {
-		hash := hex.EncodeToString(tmhash.Sum(t))
-		res, err := c.TeleportSDK.TxClient.GetTx(
-			context.Background(),
-			&tx.GetTxRequest{Hash: hash},
-		)
-		if err != nil {
-			continue
-		}
-		if len(res.TxResponse.Logs) == 0 {
-			continue
-		}
-		stringEvents := res.TxResponse.Logs[0].Events
-		tmpPackets, err := c.getPackets(stringEvents, destChainType)
-		if err != nil {
-			return nil, err
-		}
-		//bizPackets = append(bizPackets, tmpPackets...)
-		tmpAckPacks, err := c.getAckPackets(stringEvents, destChainType)
-		if err != nil {
-			return nil, err
-		}
-		if len(tmpPackets) == 0 && len(tmpAckPacks) == 0 {
-			continue
-		}
-		singers := res.Tx.GetSigners()
-		if len(singers) == 0 {
-			continue
-		}
-		for _, pt := range tmpPackets {
-			commitment := packettypes.CommitPacket(pt)
-			crossChainTx := model.CrossPacket{
-				Packet:     &pt,
-				AckPacket:  nil,
-				Commitment: string(commitment),
-				Height:     height,
-				TxHash:     res.TxResponse.TxHash,
-				Sender:     singers[0].String(),
-				Status:     int8(InProcess),
-			}
-			crossChainTxs = append(crossChainTxs, crossChainTx)
-		}
-		for _, ackPacket := range tmpAckPacks {
-			commitment := packettypes.CommitPacket(ackPacket.Packet)
-			crossChainTx := model.CrossPacket{
-				AckPacket:  &ackPacket,
-				Commitment: string(commitment),
-				Status:     int8(GetStatus(ackPacket.Acknowledgement)),
-			}
-			crossChainTxs = append(crossChainTxs, crossChainTx)
-		}
-	}
-	return crossChainTxs, nil
 }
 
 func GetStatus(ack []byte) PacketStatus {
@@ -441,18 +376,19 @@ func (c *Tendermint) UpdateClient(header exported.Header, chainName string) erro
 		Signer:    c.address,
 	})
 	if err != nil {
-		cliState, err := c.GetLightClientState(chainName)
-		if err != nil {
-			return err
+		cliState, errGet := c.GetLightClientState(chainName)
+		if errGet != nil {
+			return errGet
 		}
 		if cliState.GetLatestHeight().GTE(header.GetHeight()) {
 			return nil
 		}
+		return err
 	}
 	if res.TxResponse.Code != 0 {
 		return fmt.Errorf(res.TxResponse.RawLog)
 	}
-	return err
+	return nil
 }
 
 func (c *Tendermint) GetCommitmentsPacket(sourceChainName, destChainName string, sequence uint64) error {
