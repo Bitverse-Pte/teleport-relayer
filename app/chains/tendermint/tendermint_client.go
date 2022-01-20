@@ -376,13 +376,13 @@ func (c *Tendermint) UpdateClient(header exported.Header, chainName string) erro
 		Signer:    c.address,
 	})
 	if err != nil {
-		cliState, errGet := c.GetLightClientState(chainName)
-		if errGet != nil {
-			return errGet
-		}
-		if cliState.GetLatestHeight().GTE(header.GetHeight()) {
-			return nil
-		}
+		//cliState, errGet := c.GetLightClientState(chainName)
+		//if errGet != nil {
+		//	return errGet
+		//}
+		//if cliState.GetLatestHeight().GTE(header.GetHeight()) {
+		//	return nil
+		//}
 		return err
 	}
 	if res.TxResponse.Code != 0 {

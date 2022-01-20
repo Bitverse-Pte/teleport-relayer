@@ -2,6 +2,7 @@ package channels
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/go-co-op/gocron"
 
@@ -10,26 +11,26 @@ import (
 	"github.com/teleport-network/teleport-relayer/app/types"
 )
 
-func (c *Channel) validatePacketHeight(height uint64) bool {
+func (c *Channel) validatePacketHeight(height uint64) error {
 	delayHeight, err := c.chainB.GetLightClientDelayHeight(c.chainA.ChainName())
 	if err != nil {
-		c.logger.Errorf("get lightClient delay height fail:%+v", err)
-		return false
-	}
-	if height+delayHeight < c.clientHeight {
-		return true
+		return fmt.Errorf("get lightClient delay height fail:%+v", err)
+
 	}
 	clientState, err := c.chainB.GetLightClientState(c.chainA.ChainName())
 	if err != nil {
-		c.logger.Errorf("get lightClient client state fail:%+v", err)
-		return false
+		return fmt.Errorf("get lightClient client state fail:%+v", err)
+
 	}
 	c.clientHeight = clientState.GetLatestHeight().GetRevisionHeight()
-	if height+delayHeight < c.clientHeight || c.chainA.ChainType() == types.Tendermint {
-		return true
+	chainAHeight, err := c.chainA.GetLatestHeight()
+	if err != nil {
+		return fmt.Errorf("get latest height error %+v", err)
 	}
-	c.logger.Infof("need wait client update to height %d ! clientHeight=%v < relayHeight=%v", height+delayHeight, c.clientHeight, height+delayHeight)
-	return false
+	if height+delayHeight < c.clientHeight || (c.chainA.ChainType() == types.Tendermint && height < chainAHeight) {
+		return nil
+	}
+	return fmt.Errorf("need wait client update to height %d ! clientHeight=%v < relayHeight=%v", height+delayHeight, c.clientHeight, height+delayHeight)
 }
 
 func (c *Channel) UpdateClientByHeight(height uint64) error {
@@ -92,14 +93,15 @@ func (c *Channel) RelayTask(s *gocron.Scheduler) {
 }
 
 func (c *Channel) RelayPackets(height uint64) error {
-	pkt, err := c.GetMsg(height)
-	if err != nil {
+	if err := c.validatePacketHeight(height); err != nil {
+		time.Sleep(20 * time.Second)
 		return err
 	}
-	if len(pkt) == 0 {
-		return nil
+	pkt, err := c.GetMsg(height)
+	if err != nil {
+		return fmt.Errorf("get msg err:%+v",err)
 	}
-	if !c.validatePacketHeight(height) {
+	if len(pkt) == 0 {
 		return nil
 	}
 	if c.chainA.ChainType() == types.Tendermint {
