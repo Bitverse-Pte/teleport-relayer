@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+	"github.com/gin-gonic/gin"
 	"path/filepath"
 	"time"
 
@@ -37,11 +39,18 @@ func NewApp() *App {
 
 func (a *App) Start() {
 	s := gocron.NewScheduler(time.UTC)
+	r := gin.New()
+	r.Use(gin.Recovery())
 	for chainName, channel := range a.channelMap {
 		a.logger.Printf("relay packet for %s\n", chainName)
 		channel.RelayTask(s)
+		r.PUT(fmt.Sprintf("/relayer/%v/height",chainName),channel.UpgradeRelayHeight)
+		r.GET(fmt.Sprintf("/relayer/%v/height",chainName),channel.ViewRelayHeight)
 	}
-	s.StartBlocking()
+	s.StartAsync()
+	if err:= r.Run(":8080");err!= nil {
+		panic(err)
+	}
 }
 
 func (a *App) EvmClientSync() {

@@ -26,9 +26,6 @@ func (c *Channel) GetMsg(height uint64) ([]sdk.Msg, error) {
 		return nil, err
 	}
 	proofHeight := clientState.GetLatestHeight().GetRevisionHeight() - delayHeight
-	if proofHeight < height+1 {
-		proofHeight = height + 1
-	}
 	var relayPackets []sdk.Msg
 	for _, pack := range packets.BizPackets {
 		if pack.SourceChain == c.chainB.ChainName() || (pack.DestinationChain != c.chainB.ChainName() && pack.RelayChain != c.chainB.ChainName()) {

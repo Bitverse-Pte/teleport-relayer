@@ -126,15 +126,6 @@ func (eth *Eth) RelayPackets(msgs []sdk.Msg) error {
 	for _, d := range msgs {
 		switch msg := d.(type) {
 		case *packettypes.MsgRecvPacket:
-			//msg := d.(*packet.MsgRecvPacket)
-			isNotReceipt, err := eth.GetReceiptPacket(msg.Packet.SourceChain, msg.Packet.DestinationChain, msg.Packet.Sequence)
-			if err != nil {
-				return err
-			}
-			// if receipt exist, skip
-			if isNotReceipt {
-				continue
-			}
 			tmpPack := contracts.PacketTypesPacket{
 				Sequence:    msg.Packet.Sequence,
 				Ports:       msg.Packet.Ports,
@@ -148,7 +139,7 @@ func (eth *Eth) RelayPackets(msgs []sdk.Msg) error {
 				RevisionHeight: msg.ProofHeight.RevisionHeight,
 			}
 
-			if err = eth.setPacketOpts(); err != nil {
+			if err := eth.setPacketOpts(); err != nil {
 				return err
 			}
 			result, err := eth.contracts.Packet.RecvPacket(
@@ -163,14 +154,6 @@ func (eth *Eth) RelayPackets(msgs []sdk.Msg) error {
 			resultTx.Hash += "," + result.Hash().String()
 
 		case *packettypes.MsgAcknowledgement:
-			isNotReceipt, err := eth.GetReceiptPacket(msg.Packet.SourceChain, msg.Packet.DestinationChain, msg.Packet.Sequence)
-			if err != nil {
-				return err
-			}
-			// if receipt exist, skip
-			if isNotReceipt {
-				continue
-			}
 			tmpPack := contracts.PacketTypesPacket{
 				Sequence:    msg.Packet.Sequence,
 				Ports:       msg.Packet.Ports,
@@ -184,7 +167,7 @@ func (eth *Eth) RelayPackets(msgs []sdk.Msg) error {
 				RevisionHeight: msg.ProofHeight.RevisionHeight,
 			}
 
-			if err = eth.setPacketOpts(); err != nil {
+			if err := eth.setPacketOpts(); err != nil {
 				return err
 			}
 
@@ -200,6 +183,9 @@ func (eth *Eth) RelayPackets(msgs []sdk.Msg) error {
 		}
 	}
 	resultTx.Hash = strings.Trim(resultTx.Hash, ",")
+	if resultTx.Hash == "" {
+		return fmt.Errorf("resultTx.Hash is empty")
+	}
 	if err := eth.reTryEthResult(resultTx.Hash, 0); err != nil {
 		return err
 	}

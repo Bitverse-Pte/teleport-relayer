@@ -7,7 +7,7 @@ import (
 	"github.com/teleport-network/teleport-relayer/app/chains/eth"
 	"github.com/teleport-network/teleport-relayer/app/chains/tendermint"
 	"github.com/teleport-network/teleport-relayer/app/config"
-	interfaces2 "github.com/teleport-network/teleport-relayer/app/interfaces"
+	"github.com/teleport-network/teleport-relayer/app/interfaces"
 )
 
 const TendermintAndTendermint = "tendermint_and_tendermint"
@@ -39,7 +39,7 @@ func NewChannelMap(cfg *config.Config, logger *logrus.Logger) map[string]IChanne
 	return nil
 }
 
-func MakeChannels(cfg *config.Config, sourceChain, destChain interfaces2.IChain, logger *logrus.Logger) map[string]IChannel {
+func MakeChannels(cfg *config.Config, sourceChain, destChain interfaces.IChain, logger *logrus.Logger) map[string]IChannel {
 	srcChannel, err := NewChannel(sourceChain, destChain, cfg.Chain.Source.Cache.StartHeight, cfg.Chain.Source.Cache.Filename, logger)
 	if err != nil {
 		panic(err)

@@ -2,6 +2,9 @@ package channels
 
 import (
 	"fmt"
+	"github.com/gin-gonic/gin"
+	"github.com/teleport-network/teleport-relayer/app/dto"
+	"net/http"
 	"time"
 
 	"github.com/go-co-op/gocron"
@@ -22,6 +25,8 @@ var _ IChannel = new(Channel)
 type IChannel interface {
 	RelayTask(s *gocron.Scheduler)
 	EvmClientUpdate() error
+	UpgradeRelayHeight(ctx *gin.Context)
+	ViewRelayHeight(ctx *gin.Context)
 }
 
 type Channel struct {
@@ -77,6 +82,33 @@ func (c *Channel) UpdateHeight() {
 	}
 }
 
+func (c *Channel) UpgradeRelayHeight(ctx *gin.Context) {
+	var  heightObj dto.ReqUpgradeHeight
+	if err := ctx.Bind(&heightObj);err != nil {
+		ctx.JSON(http.StatusOK, dto.Response{Code: dto.BadRequest, Message: fmt.Sprintf("invalid type:%v", err.Error())})
+        return
+	}
+	if heightObj.Height == 0 {
+		ctx.JSON(http.StatusOK, dto.Response{Code: dto.BadRequest, Message: fmt.Sprintf("height = 0")})
+		return
+	}
+	chainAHeight, err := c.chainA.GetLatestHeight()
+	if err != nil {
+		ctx.JSON(http.StatusOK, dto.Response{Code: dto.BadRequest, Message: fmt.Sprintf("get latest height err:%v", err.Error())})
+		return
+	}
+	if chainAHeight < heightObj.Height {
+		ctx.JSON(http.StatusOK, dto.Response{Code: dto.BadRequest, Message: fmt.Sprintf("upgrade height %v > latest height %v\n", heightObj.Height, chainAHeight)})
+		return
+	}
+	c.relayHeight = heightObj.Height
+	ctx.JSON(http.StatusOK, dto.Response{Code: dto.Success, Message: "success", Data: c.relayHeight})
+}
+
+func (c *Channel) ViewRelayHeight(ctx *gin.Context) {
+	ctx.JSON(http.StatusOK, dto.Response{Code: dto.Success, Message: "success", Data: c.relayHeight})
+}
+
 func (c *Channel) EvmClientUpdate() error {
 	if c.chainA.ChainType() == types.Tendermint {
 		return nil
@@ -90,7 +122,7 @@ func (c *Channel) EvmClientUpdate() error {
 	if updateHeight >= chainAHeight {
 		c.logger.Infof("updateHeight %v > chainA height %v,no use update", updateHeight, chainAHeight)
 		time.Sleep(40 * time.Second)
-	    return nil
+		return nil
 	}
 	c.logger.Println("update client updateHeight:", updateHeight)
 	for {
