@@ -122,9 +122,6 @@ func (c *Channel) EvmClientUpdate(s *gocron.Scheduler) {
 }
 
 func (c *Channel) evmClientUpdate() error {
-	if c.chainA.ChainType() == types.Tendermint {
-		return nil
-	}
 	chainAHeight, _ := c.chainA.GetLatestHeight()
 	clientState, err := c.chainB.GetLightClientState(c.chainA.ChainName())
 	if err != nil {
