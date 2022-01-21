@@ -84,7 +84,7 @@ func (c *Channel) RelayTask(s *gocron.Scheduler) {
 	})
 	if c.chainA.ChainType() == types.ETH || c.chainA.ChainType() == types.BSC {
 		s.Every(5).Seconds().Do(func() {
-			if err := c.EvmClientUpdate(); err != nil {
+			if err := c.evmClientUpdate(); err != nil {
 				c.logger.Errorf("EvmClientUpdate err : %+v", err)
 				return
 			}

@@ -24,7 +24,7 @@ var _ IChannel = new(Channel)
 
 type IChannel interface {
 	RelayTask(s *gocron.Scheduler)
-	EvmClientUpdate() error
+	EvmClientUpdate(s *gocron.Scheduler)
 	UpgradeRelayHeight(ctx *gin.Context)
 	ViewRelayHeight(ctx *gin.Context)
 }
@@ -109,7 +109,19 @@ func (c *Channel) ViewRelayHeight(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, dto.Response{Code: dto.Success, Message: "success", Data: c.relayHeight})
 }
 
-func (c *Channel) EvmClientUpdate() error {
+func (c *Channel) EvmClientUpdate(s *gocron.Scheduler) {
+	if c.chainA.ChainType() == types.ETH || c.chainA.ChainType() == types.BSC {
+		s.Every(5).Seconds().Do(func() {
+			if err := c.evmClientUpdate(); err != nil {
+				c.logger.Errorf("EvmClientUpdate err : %+v", err)
+				time.Sleep(10 * time.Second)
+				return
+			}
+		})
+	}
+}
+
+func (c *Channel) evmClientUpdate() error {
 	if c.chainA.ChainType() == types.Tendermint {
 		return nil
 	}
