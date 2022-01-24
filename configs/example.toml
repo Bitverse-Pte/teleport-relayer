@@ -1,4 +1,3 @@
-
 [App]
 channel_types = ["tendermint_and_eth"]
 Env = "dev"
@@ -13,6 +12,7 @@ logrotation_time = 24
 
 [Chain.Dest]
 chain_type = "eth"
+relay_frequency = 5
 
 [Chain.Dest.Cache]
 filename = "destdata"
@@ -47,6 +47,7 @@ Topic = "PacketSent((uint64,string,string,string,string[],bytes[]))"
 
 [Chain.Source]
 Chain_type = "tendermint"
+relay_frequency = 1
 
 [Chain.Source.Cache]
 Filename = "sourcedata"

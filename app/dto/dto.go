@@ -14,3 +14,7 @@ type Response struct {
 type ReqUpgradeHeight struct {
 	Height uint64 `json:"height" form:"height"`
 }
+
+type ReqUpgradeExtraWait struct {
+	ExtraWait uint64 `json:"extra_wait" form:"extra_wait"`
+}

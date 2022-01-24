@@ -33,10 +33,10 @@ func InitConfig() {
 
 type (
 	Config struct {
-		App   App   `toml:"app"`
-		Chain Chain `toml:"chain"`
-		Mysql Mysql `toml:"mysql"`
-		Log   Log   `toml:"log"`
+		App    App    `toml:"app"`
+		Chain  Chain  `toml:"chain"`
+		Mysql  Mysql  `toml:"mysql"`
+		Log    Log    `toml:"log"`
 	}
 
 	Mysql struct {
@@ -57,11 +57,12 @@ type (
 	}
 
 	ChainCfg struct {
-		Cache      Cache      `toml:"cache"`
-		Tendermint Tendermint `toml:"tendermint"`
-		Eth        Eth        `toml:"eth"`
-		Bsc        Bsc        `toml:"bsc"`
-		ChainType  string     `toml:"chain_type"`
+		RelayFrequency uint64       `toml:"relay_frequency"`
+		Cache          Cache      `toml:"cache"`
+		Tendermint     Tendermint `toml:"tendermint"`
+		Eth            Eth        `toml:"eth"`
+		Bsc            Bsc        `toml:"bsc"`
+		ChainType      string     `toml:"chain_type"`
 	}
 
 	// bsc config ============================================================
