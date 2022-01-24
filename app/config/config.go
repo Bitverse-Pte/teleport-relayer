@@ -39,11 +39,6 @@ type (
 		Log    Log    `toml:"log"`
 	}
 
-	Channel struct {
-		ChannelType  string  `toml:"channel_type"`
-
-	}
-
 	Mysql struct {
 		MysqlStr     string `toml:"mysql_str"`
 		DBLog        uint8  `toml:"db_log"`
