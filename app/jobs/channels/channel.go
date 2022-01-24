@@ -128,7 +128,7 @@ func (c *Channel) UpgradeExtraWait(ctx *gin.Context) {
 
 func (c *Channel) EvmClientUpdate(s *gocron.Scheduler) {
 	if c.chainA.ChainType() == types.ETH || c.chainA.ChainType() == types.BSC {
-		jobs ,err := s.Every(c.relayFrequency).Seconds().Do(func() {
+		jobs ,err := s.Every(int(c.relayFrequency)).Seconds().Do(func() {
 			time.Sleep(time.Duration(c.extraWait*c.relayFrequency) * time.Second)
 			if err := c.evmClientUpdate(); err != nil {
 				c.logger.Errorf("EvmClientUpdate err : %+v", err)

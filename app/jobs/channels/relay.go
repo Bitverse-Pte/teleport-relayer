@@ -73,7 +73,7 @@ func (c *Channel) UpdateClientByHeight(height uint64) error {
 }
 
 func (c *Channel) RelayTask(s *gocron.Scheduler) {
-	relayJobs, err := s.Every(c.relayFrequency).Seconds().Do(func() {
+	relayJobs, err := s.Every(int(c.relayFrequency)).Seconds().Do(func() {
 		time.Sleep(time.Duration(c.extraWait*c.relayFrequency) * time.Second)
 		c.logger.Infof("start relay %+v! height : %+v", c.chainA.ChainName(), c.relayHeight)
 		c.UpdateHeight()
@@ -88,7 +88,7 @@ func (c *Channel) RelayTask(s *gocron.Scheduler) {
 	}
 	relayJobs.SingletonMode()
 	if c.chainA.ChainType() == types.ETH || c.chainA.ChainType() == types.BSC {
-		updateJobs, err := s.Every(c.relayFrequency).Seconds().Do(func() {
+		updateJobs, err := s.Every(int(c.relayFrequency)).Seconds().Do(func() {
 			time.Sleep(time.Duration(c.extraWait*c.relayFrequency) * time.Second)
 			if err := c.evmClientUpdate(); err != nil {
 				c.logger.Errorf("EvmClientUpdate err : %+v", err)
