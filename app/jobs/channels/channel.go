@@ -2,20 +2,17 @@ package channels
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/teleport-network/teleport-relayer/app/dto"
 	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/go-co-op/gocron"
-
-	interfaces2 "github.com/teleport-network/teleport-relayer/app/interfaces"
-
 	log "github.com/sirupsen/logrus"
-
 	"github.com/teleport-network/teleport/x/xibc/exported"
 
 	"github.com/teleport-network/teleport-relayer/app/config"
+	"github.com/teleport-network/teleport-relayer/app/dto"
+	"github.com/teleport-network/teleport-relayer/app/interfaces"
 	"github.com/teleport-network/teleport-relayer/app/repo/cache"
 	"github.com/teleport-network/teleport-relayer/app/types"
 )
@@ -27,25 +24,30 @@ type IChannel interface {
 	EvmClientUpdate(s *gocron.Scheduler)
 	UpgradeRelayHeight(ctx *gin.Context)
 	ViewRelayHeight(ctx *gin.Context)
+	UpgradeExtraWait(ctx *gin.Context)
+	ViewExtraWait(ctx *gin.Context)
 }
 
 type Channel struct {
-	chainA       interfaces2.IChain
-	chainB       interfaces2.IChain
-	relayHeight  uint64
-	clientHeight uint64 // TODO
-	chainName    string
-	state        *cache.CacheFileWriter
-	logger       *log.Logger
+	chainA         interfaces.IChain
+	chainB         interfaces.IChain
+	relayHeight    uint64
+	clientHeight   uint64 // TODO
+	chainName      string
+	relayFrequency uint64
+	extraWait      uint64  // waitTime = (extraWait * relayFrequency) second
+	state          *cache.CacheFileWriter
+	logger         *log.Logger
 }
 
 // TODO: pullHeight   relayHeight   chainAHeight   clientAHeight
 
 func NewChannel(
-	source interfaces2.IChain,
-	dest interfaces2.IChain,
+	source interfaces.IChain,
+	dest interfaces.IChain,
 	height uint64,
 	cacheName string,
+	relayFrequency uint64,
 	logger *log.Logger,
 ) (
 	IChannel,
@@ -67,12 +69,13 @@ func NewChannel(
 		startHeight = stateData.LatestHeight
 	}
 	return &Channel{
-		chainA:      source,
-		chainB:      dest,
-		relayHeight: startHeight,
-		chainName:   source.ChainName(),
-		state:       state,
-		logger:      logger,
+		chainA:         source,
+		chainB:         dest,
+		relayHeight:    startHeight,
+		chainName:      source.ChainName(),
+		relayFrequency: relayFrequency,
+		state:          state,
+		logger:         logger,
 	}, nil
 }
 
@@ -83,10 +86,10 @@ func (c *Channel) UpdateHeight() {
 }
 
 func (c *Channel) UpgradeRelayHeight(ctx *gin.Context) {
-	var  heightObj dto.ReqUpgradeHeight
-	if err := ctx.Bind(&heightObj);err != nil {
+	var heightObj dto.ReqUpgradeHeight
+	if err := ctx.Bind(&heightObj); err != nil {
 		ctx.JSON(http.StatusOK, dto.Response{Code: dto.BadRequest, Message: fmt.Sprintf("invalid type:%v", err.Error())})
-        return
+		return
 	}
 	if heightObj.Height == 0 {
 		ctx.JSON(http.StatusOK, dto.Response{Code: dto.BadRequest, Message: fmt.Sprintf("height = 0")})
@@ -107,6 +110,20 @@ func (c *Channel) UpgradeRelayHeight(ctx *gin.Context) {
 
 func (c *Channel) ViewRelayHeight(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, dto.Response{Code: dto.Success, Message: "success", Data: c.relayHeight})
+}
+
+func (c *Channel) ViewExtraWait(ctx *gin.Context) {
+	ctx.JSON(http.StatusOK, dto.Response{Code: dto.Success, Message: "success", Data: c.extraWait})
+}
+
+func (c *Channel) UpgradeExtraWait(ctx *gin.Context) {
+	var extraWaitObj dto.ReqUpgradeExtraWait
+	if err := ctx.Bind(&extraWaitObj); err != nil {
+		ctx.JSON(http.StatusOK, dto.Response{Code: dto.BadRequest, Message: fmt.Sprintf("invalid type:%v", err.Error())})
+		return
+	}
+	c.extraWait = extraWaitObj.ExtraWait
+	ctx.JSON(http.StatusOK, dto.Response{Code: dto.Success, Message: "success", Data: c.extraWait})
 }
 
 func (c *Channel) EvmClientUpdate(s *gocron.Scheduler) {
@@ -141,15 +158,11 @@ func (c *Channel) evmClientUpdate() error {
 			TrustedHeight:  clientState.GetLatestHeight().GetRevisionHeight(),
 			RevisionNumber: clientState.GetLatestHeight().GetRevisionNumber(),
 		}
-		t1 := time.Now()
 		header, err = c.chainA.GetBlockHeader(req)
 		if err != nil {
 			c.logger.Println("get blockHeader err", err)
 			continue
 		}
-		t2 := time.Now()
-		duration := t2.Sub(t1)
-		c.logger.Println("get BlockHeader duration:", duration)
 		if err = c.chainB.UpdateClient(header, c.chainA.ChainName()); err != nil {
 			if isBifurcate(err) {
 				updateHeight--

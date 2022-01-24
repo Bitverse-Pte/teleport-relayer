@@ -40,11 +40,11 @@ func NewChannelMap(cfg *config.Config, logger *logrus.Logger) map[string]IChanne
 }
 
 func MakeChannels(cfg *config.Config, sourceChain, destChain interfaces.IChain, logger *logrus.Logger) map[string]IChannel {
-	srcChannel, err := NewChannel(sourceChain, destChain, cfg.Chain.Source.Cache.StartHeight, cfg.Chain.Source.Cache.Filename, logger)
+	srcChannel, err := NewChannel(sourceChain, destChain, cfg.Chain.Source.Cache.StartHeight, cfg.Chain.Source.Cache.Filename,cfg.Chain.Source.RelayFrequency, logger)
 	if err != nil {
 		panic(err)
 	}
-	destChannel, err := NewChannel(destChain, sourceChain, cfg.Chain.Dest.Cache.StartHeight, cfg.Chain.Dest.Cache.Filename, logger)
+	destChannel, err := NewChannel(destChain, sourceChain, cfg.Chain.Dest.Cache.StartHeight, cfg.Chain.Dest.Cache.Filename,cfg.Chain.Dest.RelayFrequency, logger)
 	if err != nil {
 		panic(err)
 	}
