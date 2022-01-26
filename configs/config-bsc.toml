@@ -1,0 +1,74 @@
+
+[App]
+  channel_types = ["tendermint_and_bsc"]
+  Env = "dev"
+  log_level = "debug"
+ 
+[log]
+  log_file_name = "teleport-relayer"
+  logmax_age = 365
+  logrotation_time = 24
+
+[Chain]
+
+  [Chain.Dest]
+    chain_type = "bsc"
+    relay_frequency = 5
+
+    [Chain.Dest.Cache]
+      filename = "destdata"
+      start_height = 10016108
+
+    [Chain.Dest.Bsc]
+      chain_id = 97
+      chain_name = "test-bsc"
+      gas_limit = 5100000
+      max_gas_price = 15000000000
+      tip_coefficient = 0.2
+      uri = "https://data-seed-prebsc-1-s1.binance.org:8545"
+      Update_client_frequency = 2
+
+      [Chain.Dest.Bsc.Contracts]
+
+        [Chain.Dest.Bsc.Contracts.Ack_packet]
+          Addr = "0xe603f6cc00177638921deeab57daf17833c7a42f"
+          Opt_priv_key = "4aed2da9f8558b0f6746ce39aba1f85523f878bfd808339ac57d1551aeee7ae9"
+          Topic = "AckWritten((uint64,string,string,string,string[],bytes[]),bytes)"
+
+        [Chain.Dest.Bsc.Contracts.Client]
+          Addr = "0x2dd1fdfa2703f5508a60a48a03ce7eadfb048cfe"
+          Opt_priv_key = "4aed2da9f8558b0f6746ce39aba1f85523f878bfd808339ac57d1551aeee7ae9"
+          Topic = ""
+
+        [Chain.Dest.Bsc.Contracts.Packet]
+          Addr = "0xe603f6cc00177638921deeab57daf17833c7a42f"
+          Opt_priv_key = "4aed2da9f8558b0f6746ce39aba1f85523f878bfd808339ac57d1551aeee7ae9"
+          Topic = "PacketSent((uint64,string,string,string,string[],bytes[]))"
+
+
+  [Chain.Source]
+    Chain_type = "tendermint"
+    relay_frequency = 1
+
+    [Chain.Source.Cache]
+      Filename = "sourcedata"
+      start_height = 23647
+
+
+    [Chain.Source.Tendermint]
+      Chain_id = "teleport_7001-1"
+      Chain_name = "teleport"
+      Clean_packet_enabled = true
+      Gas = 0
+      grpc_addr = "10.41.20.10:9090"
+      request_timeout = 100
+      update_client_frequency = 1
+
+      [Chain.Source.Tendermint.Fee]
+        Amount = 0
+        Denom = ""
+
+      [Chain.Source.Tendermint.Key]
+        Name = "node0"
+        Password = "1234567890"
+        mnemonic = "boat this borrow enlist edge thumb bid payment reunion priority nation grit trumpet kiwi include fan gas oppose hood crisp innocent buzz fatal snake"

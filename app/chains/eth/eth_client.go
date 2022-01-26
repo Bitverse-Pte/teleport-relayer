@@ -211,6 +211,10 @@ func (eth *Eth) UpdateClient(header exported.Header, chainName string) error {
 	return nil
 }
 
+func (eth *Eth) BatchUpdateClient(headers []exported.Header, chainName string) error{
+	return nil
+}
+
 func (eth *Eth) reTryEthResult(hash string, n uint64) error {
 	if n == RetryTimes {
 		return fmt.Errorf("retry %d times and return error", RetryTimes)

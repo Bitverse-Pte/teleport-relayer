@@ -2,6 +2,7 @@ package channels
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/go-co-op/gocron"
@@ -59,17 +60,51 @@ func (c *Channel) UpdateClientByHeight(height uint64) error {
 	if updateHeight < chainAHeight {
 		reqHeight = chainAHeight
 	}
+	revisionNumber := clientState.GetLatestHeight().GetRevisionNumber()
 	var header exported.Header
 	req := &types.GetBlockHeaderReq{
 		LatestHeight:   reqHeight,
-		TrustedHeight:  clientState.GetLatestHeight().GetRevisionHeight(),
-		RevisionNumber: clientState.GetLatestHeight().GetRevisionNumber(),
+		TrustedHeight:  revisionHeight,
+		RevisionNumber: revisionNumber,
 	}
 	header, err = c.chainA.GetBlockHeader(req)
 	if err != nil {
 		return err
 	}
 	return c.chainB.UpdateClient(header, c.chainA.ChainName())
+}
+
+func (c *Channel) batchGetBlockHeader(reqHeight, revisionHeight, revisionNumber uint64) ([]exported.Header, error) {
+	headers := make([]exported.Header, 5)
+	var l sync.Mutex
+	var wg sync.WaitGroup
+	wg.Add(5)
+	for i := reqHeight; i < reqHeight+5; i++ {
+		go func(height uint64) {
+			var header exported.Header
+			var err error
+			req := &types.GetBlockHeaderReq{
+				LatestHeight:   height,
+				TrustedHeight:  revisionHeight,
+				RevisionNumber: revisionNumber,
+			}
+			header, err = c.chainA.GetBlockHeader(req)
+			if err != nil {
+				return
+			}
+			l.Lock()
+			headers[height-reqHeight] = header
+			l.Unlock()
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+	for _, h := range headers {
+		if h == nil {
+			return nil, fmt.Errorf("get headers failed")
+		}
+	}
+	return headers, nil
 }
 
 func (c *Channel) RelayTask(s *gocron.Scheduler) {

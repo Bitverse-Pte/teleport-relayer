@@ -35,7 +35,7 @@ type Channel struct {
 	clientHeight   uint64 // TODO
 	chainName      string
 	relayFrequency uint64
-	extraWait      uint64  // waitTime = (extraWait * relayFrequency) second
+	extraWait      uint64 // waitTime = (extraWait * relayFrequency) second
 	state          *cache.CacheFileWriter
 	logger         *log.Logger
 }
@@ -128,7 +128,7 @@ func (c *Channel) UpgradeExtraWait(ctx *gin.Context) {
 
 func (c *Channel) EvmClientUpdate(s *gocron.Scheduler) {
 	if c.chainA.ChainType() == types.ETH || c.chainA.ChainType() == types.BSC {
-		jobs ,err := s.Every(int(c.relayFrequency)).Seconds().Do(func() {
+		jobs, err := s.Every(int(c.relayFrequency)).Seconds().Do(func() {
 			time.Sleep(time.Duration(c.extraWait*c.relayFrequency) * time.Second)
 			if err := c.evmClientUpdate(); err != nil {
 				c.logger.Errorf("EvmClientUpdate err : %+v", err)
@@ -155,7 +155,17 @@ func (c *Channel) evmClientUpdate() error {
 		time.Sleep(40 * time.Second)
 		return nil
 	}
+	revisionHeight := clientState.GetLatestHeight().GetRevisionHeight()
+	revisionNumber := clientState.GetLatestHeight().GetRevisionNumber()
+	delayHeight := clientState.GetDelayBlock()
 	c.logger.Println("update client updateHeight:", updateHeight)
+	if chainAHeight > updateHeight+delayHeight*2 {
+		headers, err := c.batchGetBlockHeader(updateHeight, revisionHeight, revisionNumber)
+		if err != nil {
+			return err
+		}
+		return c.chainB.BatchUpdateClient(headers, c.chainA.ChainName())
+	}
 	for {
 		var header exported.Header
 		req := &types.GetBlockHeaderReq{

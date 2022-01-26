@@ -334,6 +334,10 @@ func (b Bsc) UpdateClient(header exported.Header, chainName string) error {
 	return nil
 }
 
+func (b Bsc) BatchUpdateClient(headers []exported.Header, chainName string) error{
+	return nil
+}
+
 func (b Bsc) GetResult(hash string) (uint64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CtxTimeout)
 	defer cancel()
