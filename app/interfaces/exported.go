@@ -21,6 +21,7 @@ type IChain interface {
 	GetLightClientDelayHeight(string) (uint64, error)
 	GetLightClientDelayTime(string) (uint64, error)
 	UpdateClient(header exported.Header, chainName string) error
+	BatchUpdateClient(headers []exported.Header, chainName string) error
 	GetResult(hash string) (uint64, error)
 	ChainName() string
 	UpdateClientFrequency() uint64

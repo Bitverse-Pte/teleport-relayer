@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"time"
 
-	interfaces2 "github.com/teleport-network/teleport-relayer/app/interfaces"
-
 	"github.com/gogo/protobuf/proto"
+	"github.com/teleport-network/teleport-relayer/app/interfaces"
+	teleportsdk "github.com/teleport-network/teleport-sdk-go/client"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcrypto "github.com/tendermint/tendermint/crypto"
@@ -46,7 +46,7 @@ import (
 	"github.com/teleport-network/teleport-relayer/app/types/errors"
 )
 
-var _ interfaces2.IChain = new(Tendermint)
+var _ interfaces.IChain = new(Tendermint)
 
 var (
 	maxRetryAttempts    = 5
@@ -327,7 +327,6 @@ func (c *Tendermint) GetLightClientConsensusState(chainName string, height uint6
 		return nil, err
 	}
 	return consensusState, nil
-
 }
 
 func (c *Tendermint) GetLatestHeight() (uint64, error) {
@@ -375,6 +374,34 @@ func (c *Tendermint) UpdateClient(header exported.Header, chainName string) erro
 		Header:    h,
 		Signer:    c.address,
 	})
+	if err != nil {
+		return err
+	}
+	if res.TxResponse.Code != 0 {
+		return fmt.Errorf(res.TxResponse.RawLog)
+	}
+	return nil
+}
+
+func (c *Tendermint) BatchUpdateClient(headers []exported.Header, chainName string) error {
+	var msgs []sdk.Msg
+	for _, header := range headers {
+		h := codectypes.UnsafePackAny(header)
+		msg := &clienttypes.MsgUpdateClient{
+			ChainName: chainName,
+			Header:    h,
+			Signer:    c.address,
+		}
+		msgs = append(msgs, msg)
+	}
+	if len(msgs) == 0 {
+		return fmt.Errorf("msgs is empty")
+	}
+	txf, err := teleportsdk.Prepare(c.TeleportSDK, msgs[0].GetSigners()[0], msgs[0])
+	if err != nil {
+		return err
+	}
+	res, err := c.TeleportSDK.Broadcast(txf, msgs...)
 	if err != nil {
 		return err
 	}
