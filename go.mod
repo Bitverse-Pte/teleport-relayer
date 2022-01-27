@@ -21,6 +21,7 @@ require (
 	golang.org/x/crypto v0.0.0-20220112180741-5e0467b6c7ce
 	gorm.io/driver/mysql v1.2.3
 	gorm.io/gorm v1.22.5
+	sigs.k8s.io/yaml v1.2.0
 )
 
 require (

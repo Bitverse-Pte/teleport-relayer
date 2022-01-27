@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/teleport-network/teleport-relayer/version"
 	"path/filepath"
 	"time"
 
@@ -28,8 +29,8 @@ func NewApp() *App {
 		time.Duration(24*cfg.Log.LogmaxAge)*time.Hour,
 		time.Duration(cfg.Log.LogrotationTime)*time.Hour,
 	)
-	//database.NewMysqlDB(cfg.Mysql)
-	logger.Info("1. service init relayers ")
+	logger.Infof("appName:%s",version.Name)
+	logger.Infof("appCommit:%s",version.Commit)
 	channelMap := channels.NewChannelMap(cfg, logger)
 	return &App{
 		channelMap: channelMap,

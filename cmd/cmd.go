@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/teleport-network/teleport-relayer/version"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -36,6 +37,7 @@ var (
 		Short:   "Generate the files needed for create client: clientStatus & consensusState",
 		Run:     func(cmd *cobra.Command, args []string) { generate.GenerateClientFiles() },
 	}
+	versionCmd = version.NewVersionCommand()
 )
 
 func init() {
@@ -49,6 +51,7 @@ func init() {
 	rootCmd.AddCommand(generateCmd)
 	rootCmd.AddCommand(configInitCmd)
 	rootCmd.AddCommand(batchCmd)
+	rootCmd.AddCommand(versionCmd)
 }
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
