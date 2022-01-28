@@ -63,6 +63,7 @@ type (
 		Eth            Eth        `toml:"eth"`
 		Bsc            Bsc        `toml:"bsc"`
 		ChainType      string     `toml:"chain_type"`
+		Enable         bool       `toml:"enable"`
 	}
 
 	// bsc config ============================================================

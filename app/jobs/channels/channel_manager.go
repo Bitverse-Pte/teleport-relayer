@@ -40,17 +40,20 @@ func NewChannelMap(cfg *config.Config, logger *logrus.Logger) map[string]IChanne
 }
 
 func MakeChannels(cfg *config.Config, sourceChain, destChain interfaces.IChain, logger *logrus.Logger) map[string]IChannel {
-	srcChannel, err := NewChannel(sourceChain, destChain, cfg.Chain.Source.Cache.StartHeight, cfg.Chain.Source.Cache.Filename,cfg.Chain.Source.RelayFrequency, logger)
-	if err != nil {
-		panic(err)
+	channelMap := make(map[string]IChannel)
+	if cfg.Chain.Source.Enable {
+		srcChannel, err := NewChannel(sourceChain, destChain, cfg.Chain.Source.Cache.StartHeight, cfg.Chain.Source.Cache.Filename,cfg.Chain.Source.RelayFrequency, logger)
+		if err != nil {
+			panic(err)
+		}
+		channelMap[sourceChain.ChainName()] = srcChannel
 	}
-	destChannel, err := NewChannel(destChain, sourceChain, cfg.Chain.Dest.Cache.StartHeight, cfg.Chain.Dest.Cache.Filename,cfg.Chain.Dest.RelayFrequency, logger)
-	if err != nil {
-		panic(err)
-	}
-	channelMap := map[string]IChannel{
-		sourceChain.ChainName(): srcChannel,
-		destChain.ChainName():   destChannel,
+	if cfg.Chain.Dest.Enable {
+		destChannel, err := NewChannel(destChain, sourceChain, cfg.Chain.Dest.Cache.StartHeight, cfg.Chain.Dest.Cache.Filename,cfg.Chain.Dest.RelayFrequency, logger)
+		if err != nil {
+			panic(err)
+		}
+		channelMap[destChain.ChainName()] = destChannel
 	}
 	return channelMap
 }
