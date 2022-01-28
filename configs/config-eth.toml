@@ -26,6 +26,7 @@ max_gas_price = 3000000000
 tip_coefficient = 0.2
 uri = "https://rinkeby.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
 Update_client_frequency = 2
+query_filter = "packet"
 
 [Chain.Dest.Eth.Contracts]
 
@@ -62,6 +63,7 @@ Gas = 0
 grpc_addr = "10.41.20.10:9090"
 request_timeout = 100
 update_client_frequency = 1
+query_filter = "packet,ack"
 
 [Chain.Source.Tendermint.Fee]
 Amount = 0

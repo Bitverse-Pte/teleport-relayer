@@ -153,6 +153,7 @@ func (c *Channel) RelayPackets(height uint64) error {
 		if err := c.UpdateClientByHeight(height); err != nil {
 			return err
 		}
+		time.Sleep(time.Second)
 	}
 	if err := c.chainB.RelayPackets(pkt); err != nil {
 		if !handleRecvPacketsError(err) {

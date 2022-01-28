@@ -33,10 +33,10 @@ func InitConfig() {
 
 type (
 	Config struct {
-		App    App    `toml:"app"`
-		Chain  Chain  `toml:"chain"`
-		Mysql  Mysql  `toml:"mysql"`
-		Log    Log    `toml:"log"`
+		App   App   `toml:"app"`
+		Chain Chain `toml:"chain"`
+		Mysql Mysql `toml:"mysql"`
+		Log   Log   `toml:"log"`
 	}
 
 	Mysql struct {
@@ -57,7 +57,7 @@ type (
 	}
 
 	ChainCfg struct {
-		RelayFrequency uint64       `toml:"relay_frequency"`
+		RelayFrequency uint64     `toml:"relay_frequency"`
 		Cache          Cache      `toml:"cache"`
 		Tendermint     Tendermint `toml:"tendermint"`
 		Eth            Eth        `toml:"eth"`
@@ -77,6 +77,7 @@ type (
 		MaxGasPrice           uint64       `toml:"max_gas_price"`
 		CommentSlot           int64        `toml:"comment_slot"`
 		TipCoefficient        float64      `toml:"tip_coefficient"`
+		QueryFilter           string       `toml:"query_filter"`
 	}
 
 	// eth config ============================================================
@@ -91,6 +92,7 @@ type (
 		MaxGasPrice           uint64       `toml:"max_gas_price"`
 		CommentSlot           int64        `toml:"comment_slot"`
 		TipCoefficient        float64      `toml:"tip_coefficient"`
+		QueryFilter           string       `toml:"query_filter"`
 	}
 
 	EthContracts struct {
@@ -117,6 +119,7 @@ type (
 		Fee                   Fee      `toml:"fee"`
 		RequestTimeout        uint     `toml:"request_timeout"` //TODO no use
 		UpdateClientFrequency uint64   `toml:"update_client_frequency"`
+		QueryFilter           string   `toml:"query_filter"`
 	}
 
 	Fee struct {

@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -62,6 +63,7 @@ type Tendermint struct {
 	chainName             string
 	chainType             string
 	updateClientFrequency uint64
+	queryFilter           string
 	// revisionNumber        uint64
 	// logger                log.Logger
 }
@@ -93,6 +95,7 @@ func NewTendermintClient(
 		TeleportSDK:           cli,
 		updateClientFrequency: updateClientFrequency,
 		address:               address,
+		queryFilter:           config.QueryFilter,
 	}, err
 }
 
@@ -574,6 +577,9 @@ func (c *Tendermint) getCrossChainPackets(stringEvents sdk.StringEvents, destCha
 }
 
 func (c *Tendermint) getPackets(stringEvents sdk.StringEvents, destChainType string) ([]packettypes.Packet, error) {
+	if strings.Contains(c.queryFilter,types.Packet) {
+		return nil,nil
+	}
 	protoEvents := getEventsVals(types.EventTypeSendPacket, stringEvents)
 	var packets []packettypes.Packet
 	for _, protoEvent := range protoEvents {
@@ -603,6 +609,9 @@ func (c *Tendermint) getPackets(stringEvents sdk.StringEvents, destChainType str
 }
 
 func (c *Tendermint) getAckPackets(stringEvents sdk.StringEvents, destChainType string) ([]types.AckPacket, error) {
+	if strings.Contains(c.queryFilter,types.Ack) {
+		return nil,nil
+	}
 	protoEvents := getEventsVals(types.EventTypeWriteAck, stringEvents)
 	var ackPackets []types.AckPacket
 	for _, protoEvent := range protoEvents {

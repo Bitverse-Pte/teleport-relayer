@@ -10,10 +10,9 @@ type ChainConfig struct {
 	UpdateClientFrequency uint64
 	ChainURI              string
 	ChainID               uint64
-
-	Slot           int64
-	TipCoefficient float64
-
+	QueryFilter           string
+	Slot                  int64
+	TipCoefficient        float64
 	ContractCfgGroup    *ContractCfgGroup
 	ContractBindOptsCfg *ContractBindOptsCfg
 }

@@ -78,6 +78,7 @@
       TipCoefficient = 0.0
       URI = ""
       UpdateClientFrequency = 0
+      query_filter = "ack"
 
       [Chain.Source.Eth.Contracts]
 
@@ -104,6 +105,7 @@
       grpc_addr = "127.0.0.1:9090"
       request_timeout = 100
       update_client_frequency = 1
+      query_filter = "ack"
 
       [Chain.Source.Tendermint.Fee]
         Amount = 0

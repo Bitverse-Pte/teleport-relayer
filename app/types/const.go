@@ -8,6 +8,8 @@ const (
 	EventTypeWriteAck   = "xibc.core.packet.v1.EventWriteAck"
 	CommitmentPoof      = "commitment"
 	AckProof            = "ack"
+	Ack                 = "ack"
+	Packet              = "packet"
 	// ChannelTendermintToTendermint = "tendermint,tendermint"
 	// ChannelTendermintToEth        = "tendermint,eth"
 	// ChannelEthToTendermint        = "eth,tendermint"

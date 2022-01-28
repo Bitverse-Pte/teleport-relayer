@@ -59,6 +59,7 @@ type Eth struct {
 	contractCfgGroup      *ContractCfgGroup
 	contracts             *contractGroup
 	bindOpts              *bindOpts
+	queryFilter           string
 	slot                  int64
 	maxGasPrice           *big.Int
 	tipCoefficient        float64
@@ -101,6 +102,7 @@ func newEth(config *ChainConfig) (*Eth, error) {
 		gethRpcCli:            rpcClient,
 		contracts:             contractGroup,
 		bindOpts:              tmpBindOpts,
+		queryFilter:           config.QueryFilter,
 		slot:                  config.Slot,
 		tipCoefficient:        config.TipCoefficient,
 		maxGasPrice:           new(big.Int).SetUint64(config.ContractBindOptsCfg.MaxGasPrice),
@@ -211,7 +213,7 @@ func (eth *Eth) UpdateClient(header exported.Header, chainName string) error {
 	return nil
 }
 
-func (eth *Eth) BatchUpdateClient(headers []exported.Header, chainName string) error{
+func (eth *Eth) BatchUpdateClient(headers []exported.Header, chainName string) error {
 	return nil
 }
 
@@ -456,6 +458,9 @@ func toBlockNumArg(number *big.Int) string {
 
 // get packets from block
 func (eth *Eth) getPackets(height uint64) ([]packettypes.Packet, error) {
+	if strings.Contains(eth.queryFilter,types.Packet) {
+		return nil,nil
+	}
 	address := common.HexToAddress(eth.contractCfgGroup.Packet.Addr)
 	topic := eth.contractCfgGroup.Packet.Topic
 	logs, err := eth.getLogs(address, topic, height, height)
@@ -485,6 +490,9 @@ func (eth *Eth) getPackets(height uint64) ([]packettypes.Packet, error) {
 
 // get ack packets from block
 func (eth *Eth) getAckPackets(height uint64) ([]types.AckPacket, error) {
+	if strings.Contains(eth.queryFilter,types.Ack) {
+		return nil,nil
+	}
 	address := common.HexToAddress(eth.contractCfgGroup.AckPacket.Addr)
 	topic := eth.contractCfgGroup.AckPacket.Topic
 	logs, err := eth.getLogs(address, topic, height, height)

@@ -1,6 +1,13 @@
 package channels
 
 import (
+	"github.com/cosmos/cosmos-sdk/codec"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
+	"github.com/cosmos/cosmos-sdk/types/tx"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	xibceth "github.com/teleport-network/teleport/x/xibc/clients/light-clients/eth/types"
+	xibctendermint "github.com/teleport-network/teleport/x/xibc/clients/light-clients/tendermint/types"
 	"strings"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -70,6 +77,9 @@ func (c *Channel) GetMsg(height uint64) ([]sdk.Msg, error) {
 			}
 			continue
 		}
+		cdc := makeCodec()
+		var ack packettypes.Acknowledgement
+		cdc.Unmarshal(pack.Acknowledgement,&ack)
 		// skip receipted
 		isNotReceipt, err := c.chainB.GetReceiptPacket(pack.Packet.SourceChain, pack.Packet.DestinationChain, pack.Packet.Sequence)
 		if err != nil {
@@ -101,4 +111,17 @@ func (c *Channel) GetMsg(height uint64) ([]sdk.Msg, error) {
 		relayPackets = append(relayPackets, recvPacket)
 	}
 	return relayPackets, nil
+}
+
+func makeCodec() *codec.ProtoCodec {
+	ir := codectypes.NewInterfaceRegistry()
+	clienttypes.RegisterInterfaces(ir)
+	govtypes.RegisterInterfaces(ir)
+	xibctendermint.RegisterInterfaces(ir)
+	xibceth.RegisterInterfaces(ir)
+	packettypes.RegisterInterfaces(ir)
+	ir.RegisterInterface("cosmos.v1beta1.Msg", (*sdk.Msg)(nil))
+	tx.RegisterInterfaces(ir)
+	cryptocodec.RegisterInterfaces(ir)
+	return codec.NewProtoCodec(ir)
 }

@@ -11,7 +11,7 @@ import (
 
 	"github.com/teleport-network/teleport-relayer/app/chains/bsc/contracts"
 	"github.com/teleport-network/teleport-relayer/app/chains/bsc/contracts/transfer"
-	interfaces2 "github.com/teleport-network/teleport-relayer/app/interfaces"
+	"github.com/teleport-network/teleport-relayer/app/interfaces"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	xibcbsc "github.com/teleport-network/teleport/x/xibc/clients/light-clients/bsc/types"
@@ -35,7 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-var _ interfaces2.IChain = new(Bsc)
+var _ interfaces.IChain = new(Bsc)
 
 const CtxTimeout = 100 * time.Second
 const TryGetGasPriceTimeInterval = 10 * time.Second
@@ -50,6 +50,7 @@ type Bsc struct {
 	contractCfgGroup      *ContractCfgGroup
 	contracts             *contractGroup
 	bindOpts              *bindOpts
+	queryFilter           string
 	slot                  int64
 	maxGasPrice           *big.Int
 	tipCoefficient        float64
@@ -58,7 +59,7 @@ type Bsc struct {
 	gethRpcCli            *rpc.Client
 }
 
-func NewBsc(config *ChainConfig) (interfaces2.IChain, error) {
+func NewBsc(config *ChainConfig) (interfaces.IChain, error) {
 	return newBsc(config)
 }
 
@@ -92,6 +93,7 @@ func newBsc(config *ChainConfig) (*Bsc, error) {
 		gethRpcCli:            rpcClient,
 		contracts:             contractGroup,
 		bindOpts:              tmpBindOpts,
+		queryFilter:           config.QueryFilter,
 		slot:                  config.Slot,
 		tipCoefficient:        config.TipCoefficient,
 		maxGasPrice:           new(big.Int).SetUint64(config.ContractBindOptsCfg.MaxGasPrice),
@@ -121,10 +123,8 @@ func (b Bsc) GetProof(sourChainName, destChainName string, sequence uint64, heig
 	var key []byte
 	switch typ {
 	case types.CommitmentPoof:
-		//key = pkConstr.GetPacketCommitmentProofKey(eth.slot)
 		key = pkConstr.GetPacketCommitmentProofKey()
 	case types.AckProof:
-		//key = pkConstr.GetAckProofKey(bsc.slot)
 		key = pkConstr.GetAckProofKey()
 	default:
 		return nil, errors.ErrGetProof
@@ -334,7 +334,7 @@ func (b Bsc) UpdateClient(header exported.Header, chainName string) error {
 	return nil
 }
 
-func (b Bsc) BatchUpdateClient(headers []exported.Header, chainName string) error{
+func (b Bsc) BatchUpdateClient(headers []exported.Header, chainName string) error {
 	return nil
 }
 
@@ -433,6 +433,9 @@ func toBlockNumArg(number *big.Int) string {
 
 // get packets from block
 func (b *Bsc) getPackets(height uint64) ([]packettypes.Packet, error) {
+	if strings.Contains(b.queryFilter,types.Packet) {
+		return nil,nil
+	}
 	address := common.HexToAddress(b.contractCfgGroup.Packet.Addr)
 	topic := b.contractCfgGroup.Packet.Topic
 	logs, err := b.getLogs(address, topic, height, height)
@@ -462,6 +465,9 @@ func (b *Bsc) getPackets(height uint64) ([]packettypes.Packet, error) {
 
 // get ack packets from block
 func (b *Bsc) getAckPackets(height uint64) ([]types.AckPacket, error) {
+	if strings.Contains(b.queryFilter,types.Ack) {
+		return nil,nil
+	}
 	address := common.HexToAddress(b.contractCfgGroup.AckPacket.Addr)
 	topic := b.contractCfgGroup.AckPacket.Topic
 	logs, err := b.getLogs(address, topic, height, height)

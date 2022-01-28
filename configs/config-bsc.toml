@@ -13,7 +13,7 @@
 
   [Chain.Dest]
     chain_type = "bsc"
-    relay_frequency = 5
+    relay_frequency = 2
 
     [Chain.Dest.Cache]
       filename = "destdata"
