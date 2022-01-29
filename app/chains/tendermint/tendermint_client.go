@@ -76,7 +76,7 @@ func NewTendermintClient(
 ) (
 	*Tendermint, error,
 ) {
-	cdc := makeCodec()
+	cdc := MakeCodec()
 	cli, err := client.NewClient(config.GrpcAddr, config.ChainID)
 	if err != nil {
 		panic(err)
@@ -689,7 +689,7 @@ func (c *Tendermint) isExitsFromStringList(sources []string, target string) bool
 	return false
 }
 
-func makeCodec() *codec.ProtoCodec {
+func MakeCodec() *codec.ProtoCodec {
 	ir := codectypes.NewInterfaceRegistry()
 	clienttypes.RegisterInterfaces(ir)
 	govtypes.RegisterInterfaces(ir)

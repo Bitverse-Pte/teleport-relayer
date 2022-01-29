@@ -2,6 +2,7 @@ package tendermint
 
 import (
 	log "github.com/sirupsen/logrus"
+
 	"github.com/teleport-network/teleport-relayer/app/config"
 	"github.com/teleport-network/teleport-relayer/app/interfaces"
 	"github.com/teleport-network/teleport-relayer/app/types"

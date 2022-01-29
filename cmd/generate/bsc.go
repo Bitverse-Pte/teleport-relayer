@@ -7,7 +7,7 @@ import (
 	"io"
 	"math/big"
 
-	"github.com/teleport-network/teleport-relayer/app/chains/tendermint"
+	"github.com/cosmos/cosmos-sdk/codec"
 
 	"golang.org/x/crypto/sha3"
 
@@ -27,11 +27,11 @@ import (
 
 const epoch = uint64(200)
 
-func generateBscJson(cfg *config.ChainCfg, tmClient *tendermint.Tendermint, logger *logrus.Entry) {
-	fmt.Printf("%+v \n", cfg.Bsc)
+func generateBscJson(bsc *config.Bsc, codec *codec.ProtoCodec, logger *logrus.Entry) {
+	fmt.Printf("%+v \n", bsc)
 	ctx, cancel := context.WithTimeout(context.Background(), 10)
 	defer cancel()
-	rpcClient, err := rpc.DialContext(ctx, cfg.Bsc.URI)
+	rpcClient, err := rpc.DialContext(ctx, bsc.URI)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -75,11 +75,11 @@ func generateBscJson(cfg *config.ChainCfg, tmClient *tendermint.Tendermint, logg
 		Nonce:       xibcbsc.EncodeNonce(blockHeader.Nonce.Uint64()),
 	}
 	number := clienttypes.NewHeight(0, header.Number.Uint64())
-	hash := common.FromHex(cfg.Bsc.Contracts.Packet.Addr)
-	fmt.Println("cfg.Bsc.Contracts.Packet.Addr=", cfg.Bsc.Contracts.Packet.Addr)
+	hash := common.FromHex(bsc.Contracts.Packet.Addr)
+	fmt.Println("cfg.Bsc.Contracts.Packet.Addr=", bsc.Contracts.Packet.Addr)
 	clientState := &xibcbsc.ClientState{
 		Header:          header.ToHeader(),
-		ChainId:         cfg.Bsc.ChainID,
+		ChainId:         bsc.ChainID,
 		Epoch:           epoch,
 		BlockInteval:    3,
 		Validators:      genesisValidators,
@@ -91,24 +91,24 @@ func generateBscJson(cfg *config.ChainCfg, tmClient *tendermint.Tendermint, logg
 		Height:    number,
 		Root:      header.Root[:],
 	}
-	signer := ecrecover(header.ToHeader(), big.NewInt(int64(cfg.Bsc.ChainID)))
+	signer := ecrecover(header.ToHeader(), big.NewInt(int64(bsc.ChainID)))
 	equal := bytes.Equal(header.Coinbase.Bytes(), signer.Bytes())
 	if !equal {
 		logger.Fatal("header.Coinbase")
 	}
 
-	clientStateBytes, err := tmClient.Codec.MarshalInterfaceJSON(clientState)
+	clientStateBytes, err := codec.MarshalInterfaceJSON(clientState)
 	if err != nil {
 		logger.Fatal(err)
 	}
-	clientStateFilename := fmt.Sprintf("%s_clientState.json", cfg.Bsc.ChainName)
+	clientStateFilename := fmt.Sprintf("%s_clientState.json", bsc.ChainName)
 	WriteCreateClientFiles(clientStateFilename, string(clientStateBytes))
 
-	consensusStateBytes, err := tmClient.Codec.MarshalInterfaceJSON(consensusState)
+	consensusStateBytes, err := codec.MarshalInterfaceJSON(consensusState)
 	if err != nil {
 		logger.Fatal(err)
 	}
-	consensusStateFilename := fmt.Sprintf("%s_consensusState.json", cfg.Bsc.ChainName)
+	consensusStateFilename := fmt.Sprintf("%s_consensusState.json", bsc.ChainName)
 	WriteCreateClientFiles(consensusStateFilename, string(consensusStateBytes))
 }
 

@@ -5,7 +5,10 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
+
+	"github.com/teleport-network/teleport-sdk-go/client"
 
 	"github.com/teleport-network/teleport-relayer/app/chains/tendermint"
 
@@ -27,10 +30,96 @@ const (
 	Bsc        = "bsc"
 )
 
-const (
-	clientStatePrefix    = `{"@type":"/xibc.clients.lightclients.tendermint.v1.ClientState",`
-	consensusStatePrefix = `{"@type":"/xibc.clients.lightclients.tendermint.v1.ConsensusState",`
+var (
+	OutPut     string
+	Type       string
+	Height     int64
+	GrpcAddr   string
+	ChainID    string
+	PacketAddr string
+	ChainName  string
 )
+
+func GenClientFiles() {
+	if Type == "" || ChainName == "" || GrpcAddr == "" {
+		return
+	}
+	config.Home = OutPut
+	if OutPut == "" {
+		config.Home = config.DefaultHomePath
+	}
+	switch Type {
+	case TENDERMINT:
+		logger := logrus.WithFields(logrus.Fields{
+			"type": TENDERMINT,
+		})
+		if Height == 0 {
+			logger.Error("tendermint height 0")
+			return
+		}
+		sdkCli, err := client.NewClient(GrpcAddr, ChainID)
+		if err != nil {
+			panic(err)
+		}
+		cli := &tendermint.Tendermint{
+			Codec:       tendermint.MakeCodec(),
+			TeleportSDK: sdkCli,
+		}
+		generateTendermintJson(cli, Height, Type, logger)
+		generateTendermintHex(cli, Height, Type, logger)
+
+	case ETH:
+		logger := logrus.WithFields(logrus.Fields{
+			"type": ETH,
+		})
+		if PacketAddr == "" {
+			logger.Error("packet address empty")
+			return
+		}
+		chainId, err := strconv.ParseInt(ChainID, 10, 64)
+		if err != nil {
+			logger.Error("chainId must be unit64")
+			return
+		}
+		eth := &config.Eth{
+			URI:       GrpcAddr,
+			ChainID:   uint64(chainId),
+			ChainName: ChainName,
+			Contracts: config.EthContracts{
+				Packet: config.EthContractCfg{
+					Addr: PacketAddr,
+				},
+			},
+		}
+		generateETHJson(eth, tendermint.MakeCodec(), logger)
+
+	case Bsc:
+		logger := logrus.WithFields(logrus.Fields{
+			"type": Bsc,
+		})
+		if PacketAddr == "" {
+			logger.Error("packet address empty")
+			return
+		}
+		chainId, err := strconv.ParseInt(ChainID, 10, 64)
+		if err != nil {
+			logger.Error("chainId must be unit64")
+			return
+		}
+		bsc := &config.Bsc{
+			URI:       GrpcAddr,
+			ChainID:   uint64(chainId),
+			ChainName: ChainName,
+			Contracts: config.EthContracts{
+				Packet: config.EthContractCfg{
+					Addr: PacketAddr,
+				},
+			},
+		}
+		generateBscJson(bsc, tendermint.MakeCodec(), logger)
+
+	}
+}
 
 func GenerateClientFiles() {
 	cfg := config.LoadConfigs()
@@ -58,6 +147,7 @@ func GenerateClientFiles() {
 				sourceChain,
 				int64(cfg.Chain.Source.Cache.StartHeight),
 				cfg.Chain.Source.Tendermint.ChainName,
+				logger,
 			)
 			logger.Info("2. init dest chain")
 			// destChain := tendermintCreateClientFiles(&cfg.Chain.Dest, logger)
@@ -72,6 +162,7 @@ func GenerateClientFiles() {
 				destChain,
 				int64(cfg.Chain.Dest.Cache.StartHeight),
 				cfg.Chain.Dest.Tendermint.ChainName,
+				logger,
 			)
 
 		case TendermintAndETH:
@@ -99,7 +190,7 @@ func GenerateClientFiles() {
 					logger,
 				)
 				logger.Info("2. init dest chain")
-				generateETHJson(&cfg.Chain.Dest, sourceChain, logger)
+				generateETHJson(&cfg.Chain.Dest.Eth, sourceChain.Codec, logger)
 			}
 
 			if cfg.Chain.Source.ChainType == ETH && cfg.Chain.Dest.ChainType == TENDERMINT {
@@ -127,7 +218,7 @@ func GenerateClientFiles() {
 					logger,
 				)
 				logger.Info("2. init source chain")
-				generateETHJson(&cfg.Chain.Source, destChain, logger)
+				generateETHJson(&cfg.Chain.Source.Eth, destChain.Codec, logger)
 			}
 
 		case TendermintAndBsc:
@@ -155,7 +246,7 @@ func GenerateClientFiles() {
 					logger,
 				)
 				logger.Info("2. init dest chain")
-				generateBscJson(&cfg.Chain.Dest, sourceChain, logger)
+				generateBscJson(&cfg.Chain.Dest.Bsc, sourceChain.Codec, logger)
 			}
 
 			if cfg.Chain.Source.ChainType == Bsc && cfg.Chain.Dest.ChainType == TENDERMINT {
@@ -183,7 +274,7 @@ func GenerateClientFiles() {
 					logger,
 				)
 				logger.Info("2. init source chain")
-				generateBscJson(&cfg.Chain.Source, destChain, logger)
+				generateBscJson(&cfg.Chain.Source.Bsc, destChain.Codec, logger)
 			}
 		}
 	}

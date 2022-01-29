@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/teleport-network/teleport-relayer/app/chains/tendermint"
+	"github.com/cosmos/cosmos-sdk/codec"
 
 	"github.com/sirupsen/logrus"
 
@@ -19,11 +19,11 @@ import (
 	"github.com/teleport-network/teleport-relayer/app/config"
 )
 
-func generateETHJson(cfg *config.ChainCfg, tmClient *tendermint.Tendermint, logger *logrus.Entry) {
-	fmt.Printf("%+v \n", cfg.Eth)
+func generateETHJson(eth *config.Eth, codec *codec.ProtoCodec, logger *logrus.Entry) {
+	fmt.Printf("%+v \n", eth)
 	ctx, cancel := context.WithTimeout(context.Background(), 10)
 	defer cancel()
-	rpcClient, err := rpc.DialContext(ctx, cfg.Eth.URI)
+	rpcClient, err := rpc.DialContext(ctx, eth.URI)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -64,11 +64,11 @@ func generateETHJson(cfg *config.ChainCfg, tmClient *tendermint.Tendermint, logg
 		BaseFee:     blockHeader.BaseFee,
 	}
 	number := clienttypes.NewHeight(0, header.Number.Uint64())
-	hash := common.FromHex(cfg.Eth.Contracts.Packet.Addr)
-	fmt.Println("cfg.Eth.Contracts.Packet.Addr=", cfg.Eth.Contracts.Packet.Addr)
+	hash := common.FromHex(eth.Contracts.Packet.Addr)
+	fmt.Println("cfg.Eth.Contracts.Packet.Addr=", eth.Contracts.Packet.Addr)
 	clientState := &xibceth.ClientState{
 		Header:          header.ToHeader(),
-		ChainId:         cfg.Eth.ChainID,
+		ChainId:         eth.ChainID,
 		ContractAddress: hash,
 		TrustingPeriod:  60 * 60 * 24 * 100,
 		TimeDelay:       0,
@@ -80,17 +80,17 @@ func generateETHJson(cfg *config.ChainCfg, tmClient *tendermint.Tendermint, logg
 		Root:      header.Root[:],
 	}
 
-	clientStateBytes, err := tmClient.Codec.MarshalInterfaceJSON(clientState)
+	clientStateBytes, err := codec.MarshalInterfaceJSON(clientState)
 	if err != nil {
 		logger.Fatal(err)
 	}
-	clientStateFilename := fmt.Sprintf("%s_clientState.json", cfg.Eth.ChainName)
+	clientStateFilename := fmt.Sprintf("%s_clientState.json", eth.ChainName)
 	WriteCreateClientFiles(clientStateFilename, string(clientStateBytes))
 
-	consensusStateBytes, err := tmClient.Codec.MarshalInterfaceJSON(consensusState)
+	consensusStateBytes, err := codec.MarshalInterfaceJSON(consensusState)
 	if err != nil {
 		logger.Fatal(err)
 	}
-	consensusStateFilename := fmt.Sprintf("%s_consensusState.json", cfg.Eth.ChainName)
+	consensusStateFilename := fmt.Sprintf("%s_consensusState.json", eth.ChainName)
 	WriteCreateClientFiles(consensusStateFilename, string(consensusStateBytes))
 }

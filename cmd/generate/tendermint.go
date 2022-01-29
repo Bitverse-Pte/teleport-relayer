@@ -72,12 +72,6 @@ func generateTendermintHex(
 		},
 		TimeDelay: 0,
 	}
-	//consensusState := xibctendermint.ConsensusState{
-	//	Timestamp:          tmHeader.Time,
-	//	Root:               bytes.HexBytes(tmHeader.AppHash),
-	//	NextValidatorsHash: bytes.HexBytes(tmHeader.NextValidatorsHash), // TODO check
-	//}
-
 	consensusState := TendermintConsensusState{
 		Timestamp: Timestamp{
 			Secs:  tmHeader.Time.Unix(),
@@ -87,26 +81,19 @@ func generateTendermintHex(
 		NextValidatorsHash: bytes.HexBytes(tmHeader.NextValidatorsHash).String(),
 	}
 	clientStateBytes, err := json.Marshal(clientState)
-	// clientStateBytes, err := proto.Marshal(clientState)
 	if err != nil {
 		logger.Fatal("marshal eth clientState error: ", err)
 	}
 	// write file
-	clientStateFilename := fmt.Sprintf("%s_clientState.json", chainName)
-	WriteCreateClientFiles(clientStateFilename, string(clientStateBytes))
-
-	clientStateFilename2 := fmt.Sprintf("%s_clientState.txt", chainName)
-	WriteCreateClientFiles(clientStateFilename2, hexutil.Encode(clientStateBytes)[2:])
+	clientStateFilename := fmt.Sprintf("%s_clientState.txt", chainName)
+	WriteCreateClientFiles(clientStateFilename, hexutil.Encode(clientStateBytes)[2:])
 	fmt.Println("clientState: ", hexutil.Encode(clientStateBytes)[2:])
 	consensusStateBytes, err := json.Marshal(&consensusState)
-	// consensusStateBytes, err := json.Marshal(consensusState)
 	if err != nil {
 		logger.Fatal(err)
 	}
-	consensusStateFilename := fmt.Sprintf("%s_consensusState.json", chainName)
-	WriteCreateClientFiles(consensusStateFilename, string(consensusStateBytes))
-	consensusStateFilename2 := fmt.Sprintf("%s_consensusState.txt", chainName)
-	WriteCreateClientFiles(consensusStateFilename2, hexutil.Encode(consensusStateBytes)[2:])
+	consensusStateFilename := fmt.Sprintf("%s_consensusState.txt", chainName)
+	WriteCreateClientFiles(consensusStateFilename, hexutil.Encode(consensusStateBytes)[2:])
 	fmt.Println("consensusState: ", hexutil.Encode(consensusStateBytes)[2:])
 }
 
@@ -114,13 +101,14 @@ func generateTendermintJson(
 	client *tendermint.Tendermint,
 	height int64,
 	chainName string,
+	logger *logrus.Entry,
 ) {
 	res, err := client.TeleportSDK.TMServiceQuery.GetBlockByHeight(
 		context.Background(),
 		&tmservice.GetBlockByHeightRequest{Height: height},
 	)
 	if err != nil {
-		fmt.Println("QueryBlock fail:  ", err)
+		logger.Fatal("QueryBlock fail:  ", err)
 	}
 	tmHeader := res.Block.Header
 	si := &tmtypes.SignedHeader{ // TODO check
@@ -151,7 +139,7 @@ func generateTendermintJson(
 	}
 	validatorSet, err := client.GetValidator(height)
 	if err != nil {
-		panic(err)
+		logger.Fatal(err)
 	}
 	var consensusState = &xibctendermint.ConsensusState{
 		Timestamp:          tmHeader.Time,
@@ -161,14 +149,14 @@ func generateTendermintJson(
 
 	clientStateBytes, err := client.Codec.MarshalInterfaceJSON(clientState)
 	if err != nil {
-		panic(err)
+		logger.Fatal(err)
 	}
 	// write file
 	clientStateFilename := fmt.Sprintf("%s_clientState.json", chainName)
 	WriteCreateClientFiles(clientStateFilename, string(clientStateBytes))
 	consensusStateBytes, err := client.Codec.MarshalInterfaceJSON(consensusState)
 	if err != nil {
-		panic(err)
+		logger.Fatal(err)
 	}
 	consensusStateFilename := fmt.Sprintf("%s_consensusState.json", chainName)
 	WriteCreateClientFiles(consensusStateFilename, string(consensusStateBytes))
