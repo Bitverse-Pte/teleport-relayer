@@ -2,6 +2,7 @@ package channels
 
 import (
 	"fmt"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"sync"
 	"time"
 
@@ -28,10 +29,23 @@ func (c *Channel) validatePacketHeight(height uint64) error {
 	if err != nil {
 		return fmt.Errorf("get latest height error %+v", err)
 	}
-	if height+delayHeight < c.clientHeight || (c.chainA.ChainType() == types.Tendermint && height < chainAHeight) {
+	if (height+delayHeight < c.clientHeight) || (c.chainA.ChainType() == types.Tendermint && height < chainAHeight) {
 		return nil
 	}
-	return fmt.Errorf("need wait client update to height %d ! clientHeight=%v < relayHeight=%v", height+delayHeight, c.clientHeight, height+delayHeight)
+	return fmt.Errorf("need wait client update to height %d ! clientHeight=%v < relayHeighta:%v", height+delayHeight, c.clientHeight, height+delayHeight)
+}
+
+func (c *Channel) checkClient() error {
+	clientState, err := c.chainB.GetLightClientState(c.chainA.ChainName())
+	if err != nil {
+		return fmt.Errorf("get lightClient client state fail:%+v", err)
+	}
+	if clientState.GetLatestHeight().GetRevisionHeight() == c.checkHeight {
+		panic("client height not updated for a long time")
+	} else {
+		c.checkHeight = clientState.GetLatestHeight().GetRevisionHeight()
+	}
+	return nil
 }
 
 func (c *Channel) UpdateClientByHeight(height uint64) error {
@@ -49,11 +63,6 @@ func (c *Channel) UpdateClientByHeight(height uint64) error {
 	chainAHeight, err := c.chainA.GetLatestHeight()
 	if err != nil {
 		return err
-	}
-	// latest height >= packet height + 1
-	if c.chainA.ChainType() == types.Tendermint && clientState.GetLatestHeight().GetRevisionHeight() >= updateHeight {
-		c.logger.Println("no need update client")
-		return nil
 	}
 	// update larger height
 	reqHeight := updateHeight
@@ -75,12 +84,14 @@ func (c *Channel) UpdateClientByHeight(height uint64) error {
 }
 
 func (c *Channel) batchGetBlockHeader(reqHeight, revisionHeight, revisionNumber uint64) ([]exported.Header, error) {
-	headers := make([]exported.Header, 5)
+	times := 5
+	headers := make([]exported.Header, times)
 	var l sync.Mutex
 	var wg sync.WaitGroup
-	wg.Add(5)
-	for i := reqHeight; i < reqHeight+5; i++ {
+	wg.Add(times)
+	for i := reqHeight; i < reqHeight+uint64(times); i++ {
 		go func(height uint64) {
+			defer wg.Done()
 			var header exported.Header
 			var err error
 			req := &types.GetBlockHeaderReq{
@@ -90,12 +101,12 @@ func (c *Channel) batchGetBlockHeader(reqHeight, revisionHeight, revisionNumber 
 			}
 			header, err = c.chainA.GetBlockHeader(req)
 			if err != nil {
+				c.logger.Errorf("GetBlockHeader error:%+v", err)
 				return
 			}
 			l.Lock()
 			headers[height-reqHeight] = header
 			l.Unlock()
-			wg.Done()
 		}(i)
 	}
 	wg.Wait()
@@ -134,19 +145,53 @@ func (c *Channel) RelayTask(s *gocron.Scheduler) {
 			panic(err)
 		}
 		updateJobs.SingletonMode()
+		checkJob, err := s.Every(10).Minute().Do(func() {
+			if err := c.checkClient(); err != nil {
+				c.logger.Errorf("checkClient err : %+v", err)
+			}
+		})
+		if err != nil {
+			panic(err)
+		}
+		checkJob.SingletonMode()
 	}
 }
 
 func (c *Channel) RelayPackets(height uint64) error {
-	if err := c.validatePacketHeight(height); err != nil {
-		time.Sleep(20 * time.Second)
-		return err
-	}
-	pkt, err := c.GetMsg(height)
+	delayHeight, err := c.chainB.GetLightClientDelayHeight(c.chainA.ChainName())
 	if err != nil {
-		return fmt.Errorf("get msg err:%+v", err)
+		return fmt.Errorf("get lightClient delay height fail:%+v", err)
+	}
+	clientState, err := c.chainB.GetLightClientState(c.chainA.ChainName())
+	if err != nil {
+		return fmt.Errorf("get lightClient client state fail:%+v", err)
+	}
+	c.clientHeight = clientState.GetLatestHeight().GetRevisionHeight()
+	chainAHeight, err := c.chainA.GetLatestHeight()
+	if err != nil {
+		return fmt.Errorf("get latest height error %+v", err)
+	}
+	if (height+delayHeight >= c.clientHeight) && (c.chainA.ChainType() == types.Tendermint && height >= chainAHeight) {
+		c.logger.Infof("need wait client update to height %d ! clientHeight=%v < relayHeighta:%v", height+delayHeight, c.clientHeight, height+delayHeight)
+		time.Sleep(10 * time.Second)
+		return nil
+	}
+	updateHeight := height
+	var pkt []sdk.Msg
+	if height+delayHeight+5 < c.clientHeight {
+		pkt, err = c.batchGetMsg(height)
+		if err != nil {
+			return fmt.Errorf("batchGetMsg error:%+v", err)
+		}
+		updateHeight += 4
+	} else {
+		pkt, err = c.GetMsg(height)
+		if err != nil {
+			return fmt.Errorf("get msg err:%+v", err)
+		}
 	}
 	if len(pkt) == 0 {
+		c.relayHeight = updateHeight
 		return nil
 	}
 	if c.chainA.ChainType() == types.Tendermint {
@@ -160,5 +205,36 @@ func (c *Channel) RelayPackets(height uint64) error {
 			return fmt.Errorf("failed to recv packet:%v", err.Error())
 		}
 	}
+	c.relayHeight = updateHeight
 	return nil
+}
+
+func (c *Channel) batchGetMsg(reqHeight uint64) ([]sdk.Msg, error) {
+	times := 10
+	msgss := make([][]sdk.Msg, times)
+	var l sync.Mutex
+	var wg sync.WaitGroup
+	var anyErr error
+	wg.Add(times)
+	for i := reqHeight; i < reqHeight+uint64(times); i++ {
+		go func(height uint64) {
+			defer wg.Done()
+			pkt, err := c.GetMsg(height)
+			if err != nil {
+				anyErr = err
+			}
+			l.Lock()
+			msgss[height-reqHeight] = pkt
+			l.Unlock()
+		}(i)
+	}
+	wg.Wait()
+	if anyErr != nil {
+		return nil, anyErr
+	}
+	var msgs []sdk.Msg
+	for _, val := range msgss {
+		msgs = append(msgs, val...)
+	}
+	return msgs, nil
 }

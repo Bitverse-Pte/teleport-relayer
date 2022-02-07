@@ -20,6 +20,7 @@ type IChain interface {
 	GetLatestHeight() (uint64, error)
 	GetLightClientDelayHeight(string) (uint64, error)
 	GetLightClientDelayTime(string) (uint64, error)
+	ClientUpdateValidate(revisionHeight, delayHeight, updateHeight uint64) (uint64, error)
 	UpdateClient(header exported.Header, chainName string) error
 	BatchUpdateClient(headers []exported.Header, chainName string) error
 	GetResult(hash string) (uint64, error)

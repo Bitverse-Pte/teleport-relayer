@@ -99,6 +99,21 @@ func NewTendermintClient(
 	}, err
 }
 
+func (c *Tendermint) ClientUpdateValidate(revisionHeight, delayHeight, updateHeight uint64) (uint64, error) {
+	latestHeight, err := c.GetLatestHeight()
+	if err != nil {
+		return 0, fmt.Errorf("GetLatestHeight error:%+v", err)
+	}
+	if revisionHeight >= updateHeight {
+		return 0, fmt.Errorf("no need update client")
+	}
+	updateHeight = revisionHeight + 1
+	if updateHeight < latestHeight-delayHeight {
+		updateHeight = latestHeight
+	}
+	return updateHeight, nil
+}
+
 func (c *Tendermint) GetPackets(height uint64, destChainType string) (*types.Packets, error) {
 	var bizPackets []packettypes.Packet
 	var ackPackets []types.AckPacket
@@ -211,20 +226,28 @@ func (c *Tendermint) GetProof(sourChainName, destChainName string, sequence uint
 // ConvertProofs converts crypto.ProofOps into MerkleProof
 
 func (c *Tendermint) RelayPackets(msgs []sdk.Msg) error {
-	// var gasWanted,getUsed,
-	// var txResponse *tx.BroadcastTxResponse
 	var err error
-	for _, d := range msgs {
-		switch msg := d.(type) {
-		case *packettypes.MsgRecvPacket:
-			msg.Signer = c.address                  // TODO
-			_, err = c.TeleportSDK.RecvPacket(*msg) // TODO RelayPackets
-		case *packettypes.MsgAcknowledgement:
-			msg.Signer = c.address
-			_, err = c.TeleportSDK.Acknowledgement(*msg) // TODO RelayPackets
-		}
+	var msg sdk.Msg
+	switch msg := msgs[0].(type) {
+	case *packettypes.MsgRecvPacket:
+		msg.Signer = c.address
+		msgs = append(msgs, msg)
+	case *packettypes.MsgAcknowledgement:
+		msg.Signer = c.address
+		msgs = append(msgs, msg)
 	}
-	return err
+	txf, err := teleportsdk.Prepare(c.TeleportSDK, msg.GetSigners()[0], msg)
+	if err != nil {
+		return err
+	}
+	res, err := c.TeleportSDK.Broadcast(txf, msgs...)
+	if err != nil {
+		return fmt.Errorf("broadcast tx error:%+v", err)
+	}
+	if res.TxResponse.Code != 0 {
+		return fmt.Errorf(res.TxResponse.RawLog)
+	}
+	return nil
 }
 
 func (c *Tendermint) GetBlockTimestamp(height uint64) (uint64, error) {
@@ -577,19 +600,16 @@ func (c *Tendermint) getCrossChainPackets(stringEvents sdk.StringEvents, destCha
 }
 
 func (c *Tendermint) getPackets(stringEvents sdk.StringEvents, destChainType string) ([]packettypes.Packet, error) {
-	if strings.Contains(c.queryFilter,types.Packet) {
-		return nil,nil
+	if strings.Contains(c.queryFilter, types.Packet) {
+		return nil, nil
 	}
 	protoEvents := getEventsVals(types.EventTypeSendPacket, stringEvents)
 	var packets []packettypes.Packet
 	for _, protoEvent := range protoEvents {
 		event, ok := protoEvent.(*packettypes.EventSendPacket)
 		if !ok {
-			// TODO
+			return nil, fmt.Errorf("proto parse failed")
 		}
-		// if event.SrcChain == c.ChainName() || (event.DstChain != c.ChainName() && event.RelayChain != c.ChainName()) {
-		//	continue // TODO
-		// }
 		sequence, err := strconv.Atoi(event.GetSequence())
 		if err != nil {
 			return nil, err
@@ -609,8 +629,8 @@ func (c *Tendermint) getPackets(stringEvents sdk.StringEvents, destChainType str
 }
 
 func (c *Tendermint) getAckPackets(stringEvents sdk.StringEvents, destChainType string) ([]types.AckPacket, error) {
-	if strings.Contains(c.queryFilter,types.Ack) {
-		return nil,nil
+	if strings.Contains(c.queryFilter, types.Ack) {
+		return nil, nil
 	}
 	protoEvents := getEventsVals(types.EventTypeWriteAck, stringEvents)
 	var ackPackets []types.AckPacket
@@ -620,7 +640,7 @@ func (c *Tendermint) getAckPackets(stringEvents sdk.StringEvents, destChainType 
 			return nil, fmt.Errorf("proto parse failed")
 		}
 		if event.GetSrcChain() != c.ChainName() && event.GetRelayChain() != c.ChainName() {
-			continue // TODO
+			continue
 		}
 		sequence, err := strconv.Atoi(event.GetSequence())
 		if err != nil {
@@ -636,7 +656,6 @@ func (c *Tendermint) getAckPackets(stringEvents sdk.StringEvents, destChainType 
 		}
 		var ackPacket types.AckPacket
 		ackPacket.Packet = tmpPack
-		// ack, err := hex.DecodeString(event.GetAck())
 		ackPacket.Acknowledgement = event.Ack
 		ackPackets = append(ackPackets, ackPacket)
 	}

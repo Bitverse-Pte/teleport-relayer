@@ -1,22 +1,20 @@
 package channels
 
 import (
+	"strings"
+
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
-	xibceth "github.com/teleport-network/teleport/x/xibc/clients/light-clients/eth/types"
-	xibctendermint "github.com/teleport-network/teleport/x/xibc/clients/light-clients/tendermint/types"
-	"strings"
-
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
-	clienttypes "github.com/teleport-network/teleport/x/xibc/core/client/types"
-	packettypes "github.com/teleport-network/teleport/x/xibc/core/packet/types"
-
 	"github.com/teleport-network/teleport-relayer/app/types"
 	"github.com/teleport-network/teleport-relayer/app/types/errors"
+	xibceth "github.com/teleport-network/teleport/x/xibc/clients/light-clients/eth/types"
+	xibctendermint "github.com/teleport-network/teleport/x/xibc/clients/light-clients/tendermint/types"
+	clienttypes "github.com/teleport-network/teleport/x/xibc/core/client/types"
+	packettypes "github.com/teleport-network/teleport/x/xibc/core/packet/types"
 )
 
 func (c *Channel) GetMsg(height uint64) ([]sdk.Msg, error) {
@@ -77,9 +75,6 @@ func (c *Channel) GetMsg(height uint64) ([]sdk.Msg, error) {
 			}
 			continue
 		}
-		cdc := makeCodec()
-		var ack packettypes.Acknowledgement
-		cdc.Unmarshal(pack.Acknowledgement,&ack)
 		// skip receipted
 		isNotReceipt, err := c.chainB.GetReceiptPacket(pack.Packet.SourceChain, pack.Packet.DestinationChain, pack.Packet.Sequence)
 		if err != nil {
@@ -111,6 +106,12 @@ func (c *Channel) GetMsg(height uint64) ([]sdk.Msg, error) {
 		relayPackets = append(relayPackets, recvPacket)
 	}
 	return relayPackets, nil
+}
+
+func (c *Channel) filterPacket(packet *packettypes.Packet) bool {
+	return (packet.SourceChain != c.chainA.ChainName() && packet.RelayChain != c.chainA.ChainName()) ||
+		(packet.DestinationChain != c.chainB.ChainName() && packet.RelayChain != c.chainB.ChainName()) ||
+		!(packet.RelayChain == c.chainA.ChainName() && packet.RelayChain == c.chainB.ChainName())
 }
 
 func makeCodec() *codec.ProtoCodec {

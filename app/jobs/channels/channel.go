@@ -32,7 +32,8 @@ type Channel struct {
 	chainA         interfaces.IChain
 	chainB         interfaces.IChain
 	relayHeight    uint64
-	clientHeight   uint64 // TODO
+	clientHeight   uint64
+	checkHeight    uint64
 	chainName      string
 	relayFrequency uint64
 	extraWait      uint64 // waitTime = (extraWait * relayFrequency) second
@@ -147,11 +148,11 @@ func (c *Channel) evmClientUpdate() error {
 	chainAHeight, _ := c.chainA.GetLatestHeight()
 	clientState, err := c.chainB.GetLightClientState(c.chainA.ChainName())
 	if err != nil {
-		return err
+		return fmt.Errorf("GetLightClientState error:%+v,chainA:%v,chainB:%v", err, c.chainA.ChainName(), c.chainB.ChainName())
 	}
 	updateHeight := clientState.GetLatestHeight().GetRevisionHeight() + 1
 	if updateHeight >= chainAHeight {
-		c.logger.Infof("updateHeight %v > chainA height %v,no use update", updateHeight, chainAHeight)
+		c.logger.Infof("updateHeight %v >= chainA height %v,no use update", updateHeight, chainAHeight)
 		time.Sleep(40 * time.Second)
 		return nil
 	}
@@ -162,7 +163,7 @@ func (c *Channel) evmClientUpdate() error {
 	if chainAHeight > updateHeight+delayHeight*2 {
 		headers, err := c.batchGetBlockHeader(updateHeight, revisionHeight, revisionNumber)
 		if err != nil {
-			return err
+			return fmt.Errorf("batchGetBlockHeader error:%+v", err)
 		}
 		return c.chainB.BatchUpdateClient(headers, c.chainA.ChainName())
 	}

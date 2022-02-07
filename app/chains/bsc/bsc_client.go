@@ -100,7 +100,12 @@ func newBsc(config *ChainConfig) (*Bsc, error) {
 	}, nil
 }
 
-func (b Bsc) GetPackets(height uint64, destChainType string) (*types.Packets, error) {
+func (b *Bsc) ClientUpdateValidate(revisionHeight, delayHeight, updateHeight uint64) (uint64, error) {
+
+	return updateHeight,nil
+}
+
+func (b *Bsc) GetPackets(height uint64, destChainType string) (*types.Packets, error) {
 	bizPackets, err := b.getPackets(height)
 	if err != nil {
 		return nil, err
@@ -118,7 +123,7 @@ func (b Bsc) GetPackets(height uint64, destChainType string) (*types.Packets, er
 	return packets, nil
 }
 
-func (b Bsc) GetProof(sourChainName, destChainName string, sequence uint64, height uint64, typ string) ([]byte, error) {
+func (b *Bsc) GetProof(sourChainName, destChainName string, sequence uint64, height uint64, typ string) ([]byte, error) {
 	pkConstr := xibcbsc.NewProofKeyConstructor(sourChainName, destChainName, sequence)
 	var key []byte
 	switch typ {
@@ -161,7 +166,7 @@ func (b Bsc) GetProof(sourChainName, destChainName string, sequence uint64, heig
 	return json.Marshal(proof)
 }
 
-func (b Bsc) RelayPackets(msgs []sdk.Msg) error {
+func (b *Bsc) RelayPackets(msgs []sdk.Msg) error {
 	resultTx := &types.ResultTx{}
 	for _, d := range msgs {
 		switch msg := d.(type) {
@@ -229,7 +234,7 @@ func (b Bsc) RelayPackets(msgs []sdk.Msg) error {
 	return nil
 }
 
-func (b Bsc) GetCommitmentsPacket(sourChainName, destChainName string, sequence uint64) error {
+func (b *Bsc) GetCommitmentsPacket(sourChainName, destChainName string, sequence uint64) error {
 	hashBytes, err := b.contracts.Packet.Commitments(nil, host.PacketCommitmentKey(sourChainName, destChainName, sequence))
 	if err != nil {
 		return err
@@ -241,11 +246,11 @@ func (b Bsc) GetCommitmentsPacket(sourChainName, destChainName string, sequence 
 	return nil
 }
 
-func (b Bsc) GetReceiptPacket(sourChainName, destChainName string, sequence uint64) (bool, error) {
+func (b *Bsc) GetReceiptPacket(sourChainName, destChainName string, sequence uint64) (bool, error) {
 	return b.contracts.Packet.Receipts(nil, host.PacketReceiptKey(sourChainName, destChainName, sequence))
 }
 
-func (b Bsc) GetBlockHeader(req *types.GetBlockHeaderReq) (exported.Header, error) {
+func (b *Bsc) GetBlockHeader(req *types.GetBlockHeaderReq) (exported.Header, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CtxTimeout)
 	defer cancel()
 	blockRes, err := b.ethClient.BlockByNumber(ctx, new(big.Int).SetUint64(req.LatestHeight))
@@ -274,7 +279,7 @@ func (b Bsc) GetBlockHeader(req *types.GetBlockHeaderReq) (exported.Header, erro
 	return &protoHeader, nil
 }
 
-func (b Bsc) GetBlockTimestamp(height uint64) (uint64, error) {
+func (b *Bsc) GetBlockTimestamp(height uint64) (uint64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CtxTimeout)
 	defer cancel()
 	blockRes, err := b.ethClient.BlockByNumber(ctx, new(big.Int).SetUint64(height))
@@ -284,7 +289,7 @@ func (b Bsc) GetBlockTimestamp(height uint64) (uint64, error) {
 	return blockRes.Time(), nil
 }
 
-func (b Bsc) GetLightClientState(chainName string) (exported.ClientState, error) {
+func (b *Bsc) GetLightClientState(chainName string) (exported.ClientState, error) {
 	latestHeight, err := b.contracts.Client.GetLatestHeight(nil, chainName)
 	if err != nil {
 		return nil, err
@@ -297,25 +302,25 @@ func (b Bsc) GetLightClientState(chainName string) (exported.ClientState, error)
 	}, nil
 }
 
-func (b Bsc) GetLightClientConsensusState(chainName string, Height uint64) (exported.ConsensusState, error) {
+func (b *Bsc) GetLightClientConsensusState(chainName string, Height uint64) (exported.ConsensusState, error) {
 	return nil, nil
 }
 
-func (b Bsc) GetLatestHeight() (uint64, error) {
+func (b *Bsc) GetLatestHeight() (uint64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CtxTimeout)
 	defer cancel()
 	return b.ethClient.BlockNumber(ctx)
 }
 
-func (b Bsc) GetLightClientDelayHeight(s string) (uint64, error) {
+func (b *Bsc) GetLightClientDelayHeight(s string) (uint64, error) {
 	return 0, nil
 }
 
-func (b Bsc) GetLightClientDelayTime(s string) (uint64, error) {
+func (b *Bsc) GetLightClientDelayTime(s string) (uint64, error) {
 	return 0, nil
 }
 
-func (b Bsc) UpdateClient(header exported.Header, chainName string) error {
+func (b *Bsc) UpdateClient(header exported.Header, chainName string) error {
 	h, ok := header.(*xibctendermint.Header)
 	if !ok {
 		return fmt.Errorf("invalid header type")
@@ -334,11 +339,11 @@ func (b Bsc) UpdateClient(header exported.Header, chainName string) error {
 	return nil
 }
 
-func (b Bsc) BatchUpdateClient(headers []exported.Header, chainName string) error {
+func (b *Bsc) BatchUpdateClient(headers []exported.Header, chainName string) error {
 	return nil
 }
 
-func (b Bsc) GetResult(hash string) (uint64, error) {
+func (b *Bsc) GetResult(hash string) (uint64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CtxTimeout)
 	defer cancel()
 
@@ -350,15 +355,15 @@ func (b Bsc) GetResult(hash string) (uint64, error) {
 	return result.Status, nil
 }
 
-func (b Bsc) ChainName() string {
+func (b *Bsc) ChainName() string {
 	return b.chainName
 }
 
-func (b Bsc) UpdateClientFrequency() uint64 {
+func (b *Bsc) UpdateClientFrequency() uint64 {
 	return b.updateClientFrequency
 }
 
-func (b Bsc) ChainType() string {
+func (b *Bsc) ChainType() string {
 	return types.BSC
 }
 

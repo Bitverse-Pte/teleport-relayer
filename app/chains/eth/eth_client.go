@@ -109,6 +109,11 @@ func newEth(config *ChainConfig) (*Eth, error) {
 	}, nil
 }
 
+func (eth *Eth) ClientUpdateValidate(revisionHeight, delayHeight, updateHeight uint64) (uint64, error) {
+
+	return updateHeight,nil
+}
+
 func (eth *Eth) TransferERC20(transferData transfer.TransferDataTypesERC20TransferData) error {
 	resultTx := &types.ResultTx{}
 	if err := eth.setPacketOpts(); err != nil {
