@@ -228,13 +228,14 @@ func (c *Tendermint) GetProof(sourChainName, destChainName string, sequence uint
 func (c *Tendermint) RelayPackets(msgs []sdk.Msg) error {
 	var err error
 	var msg sdk.Msg
-	switch msg := msgs[0].(type) {
+	switch pkt := msgs[0].(type) {
 	case *packettypes.MsgRecvPacket:
-		msg.Signer = c.address
+		pkt.Signer = c.address
+		msg = pkt
 	case *packettypes.MsgAcknowledgement:
-		msg.Signer = c.address
-	}
-	if msg == nil {
+		pkt.Signer = c.address
+		msg = pkt
+	default:
 		return fmt.Errorf("invalid packet type")
 	}
 	txf, err := teleportsdk.Prepare(c.TeleportSDK, msg.GetSigners()[0], msg)
