@@ -231,10 +231,11 @@ func (c *Tendermint) RelayPackets(msgs []sdk.Msg) error {
 	switch msg := msgs[0].(type) {
 	case *packettypes.MsgRecvPacket:
 		msg.Signer = c.address
-		msgs = append(msgs, msg)
 	case *packettypes.MsgAcknowledgement:
 		msg.Signer = c.address
-		msgs = append(msgs, msg)
+	}
+	if msg == nil {
+		return fmt.Errorf("invalid packet type")
 	}
 	txf, err := teleportsdk.Prepare(c.TeleportSDK, msg.GetSigners()[0], msg)
 	if err != nil {
