@@ -64,8 +64,7 @@ type Tendermint struct {
 	chainType             string
 	updateClientFrequency uint64
 	queryFilter           string
-	// revisionNumber        uint64
-	// logger                log.Logger
+	fees                  string
 }
 
 func NewTendermintClient(
@@ -96,6 +95,7 @@ func NewTendermintClient(
 		updateClientFrequency: updateClientFrequency,
 		address:               address,
 		queryFilter:           config.QueryFilter,
+		fees:                  strconv.FormatInt(config.Fee.Amount, 10) + config.Fee.Denom,
 	}, err
 }
 
@@ -242,6 +242,7 @@ func (c *Tendermint) RelayPackets(msgs []sdk.Msg) error {
 	if err != nil {
 		return err
 	}
+	txf.WithFees(c.fees)
 	res, err := c.TeleportSDK.Broadcast(txf, msgs...)
 	if err != nil {
 		return fmt.Errorf("broadcast tx error:%+v", err)
@@ -392,16 +393,21 @@ func (c *Tendermint) GetLightClientDelayTime(chainName string) (uint64, error) {
 		return 0, err
 	}
 	return res.GetDelayTime(), nil
-
 }
 
 func (c *Tendermint) UpdateClient(header exported.Header, chainName string) error {
 	h := codectypes.UnsafePackAny(header)
-	res, err := c.TeleportSDK.UpdateClient(clienttypes.MsgUpdateClient{
+	msg := clienttypes.MsgUpdateClient{
 		ChainName: chainName,
 		Header:    h,
 		Signer:    c.address,
-	})
+	}
+	txf, err := teleportsdk.Prepare(c.TeleportSDK, msg.GetSigners()[0], &msg)
+	if err != nil {
+		return err
+	}
+	txf.WithFees(c.fees)
+	res, err := c.TeleportSDK.Broadcast(txf, &msg)
 	if err != nil {
 		return err
 	}
@@ -429,6 +435,7 @@ func (c *Tendermint) BatchUpdateClient(headers []exported.Header, chainName stri
 	if err != nil {
 		return err
 	}
+	txf = txf.WithFees(c.fees)
 	res, err := c.TeleportSDK.Broadcast(txf, msgs...)
 	if err != nil {
 		return err
