@@ -11,7 +11,7 @@ import (
 
 	"github.com/teleport-network/teleport-relayer/app/chains/eth/contracts"
 	"github.com/teleport-network/teleport-relayer/app/chains/eth/contracts/transfer"
-	interfaces2 "github.com/teleport-network/teleport-relayer/app/interfaces"
+	"github.com/teleport-network/teleport-relayer/app/interfaces"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
@@ -37,7 +37,7 @@ import (
 	"github.com/teleport-network/teleport-relayer/app/types/errors"
 )
 
-var _ interfaces2.IChain = new(Eth)
+var _ interfaces.IChain = new(Eth)
 
 const CtxTimeout = 100 * time.Second
 const TryGetGasPriceTimeInterval = 10 * time.Second
@@ -68,7 +68,7 @@ type Eth struct {
 	gethRpcCli            *rpc.Client
 }
 
-func NewEth(config *ChainConfig) (interfaces2.IChain, error) {
+func NewEth(config *ChainConfig) (interfaces.IChain, error) {
 	return newEth(config)
 }
 

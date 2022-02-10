@@ -1096,8 +1096,8 @@ github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c h1:g+WoO5jjkqGAzH
 github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c/go.mod h1:ahpPrc7HpcfEWDQRZEmnXMzHY03mLDYMCxeDzy46i+8=
 github.com/teleport-network/teleport v0.0.0-alpha1 h1:5jR5u2kjmUrxc6JMTKS5eaf+7QP4gsbqtIlNwBlmlWU=
 github.com/teleport-network/teleport v0.0.0-alpha1/go.mod h1:y9UO8aXRSSGeruGpVpY4vd11UYxaj8UW6UJhHQD7058=
-github.com/teleport-network/teleport-sdk-go v0.1.0-alpha1.0.20220125103239-b1f4226635e9 h1:wjOEP5N3hd/F6NNHU+vCwXxN/9a2G8w4dE2yxx0QFzo=
-github.com/teleport-network/teleport-sdk-go v0.1.0-alpha1.0.20220125103239-b1f4226635e9/go.mod h1:EPpt+kqn6fAAj4DLahCfdG+Icft3Jj2CLt2Dhtd6+tc=
+github.com/teleport-network/teleport-sdk-go v0.0.0-alpha1 h1:wnGBm7rQP9b20aCWYEiBanNMErN72s0Dtz3A6j+5QDs=
+github.com/teleport-network/teleport-sdk-go v0.0.0-alpha1/go.mod h1:EPpt+kqn6fAAj4DLahCfdG+Icft3Jj2CLt2Dhtd6+tc=
 github.com/tendermint/btcd v0.1.1 h1:0VcxPfflS2zZ3RiOAHkBiFUcPvbtRj5O7zHmcJWHV7s=
 github.com/tendermint/btcd v0.1.1/go.mod h1:DC6/m53jtQzr/NFmMNEu0rxf18/ktVoVtMrnDD5pN+U=
 github.com/tendermint/crypto v0.0.0-20191022145703-50d29ede1e15 h1:hqAk8riJvK4RMWx1aInLzndwxKalgi5rTqgfXxOxbEI=
