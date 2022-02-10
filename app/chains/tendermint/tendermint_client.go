@@ -242,7 +242,6 @@ func (c *Tendermint) RelayPackets(msgs []sdk.Msg) error {
 	if err != nil {
 		return err
 	}
-	txf.WithFees(c.fees)
 	txf = txf.WithFees(c.fees)
 	res, err := c.TeleportSDK.Broadcast(txf, msgs...)
 	if err != nil {
@@ -407,7 +406,6 @@ func (c *Tendermint) UpdateClient(header exported.Header, chainName string) erro
 	if err != nil {
 		return err
 	}
-	txf.WithFees(c.fees)
 	txf = txf.WithFees(c.fees)
 	res, err := c.TeleportSDK.Broadcast(txf, &msg)
 	if err != nil {
