@@ -171,26 +171,26 @@ func (c *Channel) RelayPackets(height uint64) error {
 	if err != nil {
 		return fmt.Errorf("get latest height error %+v", err)
 	}
-	if (height+delayHeight >= c.clientHeight) && (c.chainA.ChainType() == types.Tendermint && height >= chainAHeight) {
-		c.logger.Infof("need wait client update to height %d ! clientHeight=%v < relayHeighta:%v", height+delayHeight, c.clientHeight, height+delayHeight)
-		time.Sleep(10 * time.Second)
-		return nil
-	}
 	updateHeight := height
 	var pkt []sdk.Msg
-	if height+delayHeight+5 < c.clientHeight {
+	verifyHeight := c.clientHeight
+	if c.chainA.ChainType() == types.Tendermint {
+		verifyHeight = chainAHeight
+	}
+	if height+delayHeight+5 < verifyHeight {
 		pkt, err = c.batchGetMsg(height)
 		if err != nil {
 			return fmt.Errorf("batchGetMsg error:%+v", err)
 		}
 		updateHeight += 4
-	} else if height+delayHeight < c.clientHeight {
+	} else if height+delayHeight < verifyHeight {
 		pkt, err = c.GetMsg(height)
 		if err != nil {
 			return fmt.Errorf("get msg err:%+v", err)
 		}
-	} else {
-		return fmt.Errorf("height+delayHeight :%v >= client height: %v", height+delayHeight, c.clientHeight)
+	}else {
+		time.Sleep(10 * time.Second)
+		return fmt.Errorf("height + delayHeight >= verifyHeight")
 	}
 	if len(pkt) == 0 {
 		c.relayHeight = updateHeight
