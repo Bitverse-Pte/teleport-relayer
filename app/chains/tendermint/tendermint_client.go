@@ -227,23 +227,28 @@ func (c *Tendermint) GetProof(sourChainName, destChainName string, sequence uint
 
 func (c *Tendermint) RelayPackets(msgs []sdk.Msg) error {
 	var err error
-	var msg sdk.Msg
-	switch pkt := msgs[0].(type) {
-	case *packettypes.MsgRecvPacket:
-		pkt.Signer = c.address
-		msg = pkt
-	case *packettypes.MsgAcknowledgement:
-		pkt.Signer = c.address
-		msg = pkt
-	default:
-		return fmt.Errorf("invalid packet type")
+	var packetMsgs  []sdk.Msg
+	for _,val := range msgs {
+		switch pkt := val.(type) {
+		case *packettypes.MsgRecvPacket:
+			pkt.Signer = c.address
+			packetMsgs = append(packetMsgs,pkt )
+		case *packettypes.MsgAcknowledgement:
+			pkt.Signer = c.address
+			packetMsgs = append(packetMsgs,pkt )
+		default:
+			return fmt.Errorf("invalid packet type")
+		}
 	}
-	txf, err := teleportsdk.Prepare(c.TeleportSDK, msg.GetSigners()[0], msg)
+	if len(packetMsgs)  == 0 {
+		return fmt.Errorf("invalid msgs or empty")
+	}
+	txf, err := teleportsdk.Prepare(c.TeleportSDK, packetMsgs[0].GetSigners()[0],packetMsgs[0])
 	if err != nil {
 		return err
 	}
 	txf = txf.WithFees(c.fees)
-	res, err := c.TeleportSDK.Broadcast(txf, msgs...)
+	res, err := c.TeleportSDK.Broadcast(txf, packetMsgs...)
 	if err != nil {
 		return fmt.Errorf("broadcast tx error:%+v", err)
 	}

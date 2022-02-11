@@ -159,6 +159,7 @@ func (c *Channel) evmClientUpdate() error {
 	revisionHeight := clientState.GetLatestHeight().GetRevisionHeight()
 	revisionNumber := clientState.GetLatestHeight().GetRevisionNumber()
 	delayHeight := clientState.GetDelayBlock()
+	fmt.Println("chainAHeight",chainAHeight)
 	c.logger.Println("update client updateHeight:", updateHeight)
 	if chainAHeight > updateHeight+delayHeight*2 {
 		headers, err := c.batchGetBlockHeader(updateHeight, revisionHeight, revisionNumber)
