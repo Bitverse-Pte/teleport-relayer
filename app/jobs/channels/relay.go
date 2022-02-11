@@ -184,7 +184,7 @@ func (c *Channel) RelayPackets(height uint64) error {
 			return fmt.Errorf("batchGetMsg error:%+v", err)
 		}
 		updateHeight += 4
-	} else {
+	} else if height+delayHeight < c.clientHeight {
 		pkt, err = c.GetMsg(height)
 		if err != nil {
 			return fmt.Errorf("get msg err:%+v", err)
