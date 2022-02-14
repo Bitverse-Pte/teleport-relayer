@@ -6,8 +6,6 @@ import (
 	"sync"
 	"time"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
 	"github.com/go-co-op/gocron"
 
 	"github.com/teleport-network/teleport/x/xibc/exported"
@@ -179,11 +177,7 @@ func (c *Channel) RelayPackets(height uint64) error {
 		verifyHeight = chainAHeight
 	}
 	if height+delayHeight+10 < verifyHeight {
-		if c.chainA.ChainType() == types.Tendermint {
-			pkt, err = c.batchGetMsg(height)
-		} else {
-			pkt, err = c.GetMsg(height, height+9)
-		}
+		pkt, err = c.GetMsg(height, height+9)
 		if err != nil {
 			return fmt.Errorf("batchGetMsg error:%+v", err)
 		}
@@ -217,32 +211,3 @@ func (c *Channel) RelayPackets(height uint64) error {
 	return nil
 }
 
-func (c *Channel) batchGetMsg(reqHeight uint64) ([]sdk.Msg, error) {
-	times := 10
-	msgss := make([][]sdk.Msg, times)
-	var l sync.Mutex
-	var wg sync.WaitGroup
-	var anyErr error
-	wg.Add(times)
-	for i := reqHeight; i < reqHeight+uint64(times); i++ {
-		go func(height uint64) {
-			defer wg.Done()
-			pkt, err := c.GetMsg(height, height)
-			if err != nil {
-				anyErr = err
-			}
-			l.Lock()
-			msgss[height-reqHeight] = pkt
-			l.Unlock()
-		}(i)
-	}
-	wg.Wait()
-	if anyErr != nil {
-		return nil, anyErr
-	}
-	var msgs []sdk.Msg
-	for _, val := range msgss {
-		msgs = append(msgs, val...)
-	}
-	return msgs, nil
-}

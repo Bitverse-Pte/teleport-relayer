@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -115,10 +116,40 @@ func (c *Tendermint) ClientUpdateValidate(revisionHeight, delayHeight, updateHei
 }
 
 func (c *Tendermint) GetPackets(fromBlock, toBlock uint64, destChainType string) (*types.Packets, error) {
+	times := toBlock - fromBlock + 1
+	pktss := make([][]packettypes.Packet, times)
+	ackss := make([][]types.AckPacket, times)
+	var l sync.Mutex
+	var wg sync.WaitGroup
+	var anyErr error
+	for i := fromBlock; i <= toBlock; i++ {
+		go func(height uint64) {
+			defer wg.Done()
+			pkt, err := c.getBlockPackets(height, destChainType)
+			if err != nil {
+				anyErr = err
+			}
+			l.Lock()
+			pktss[height-fromBlock] = pkt.BizPackets
+			ackss[height-fromBlock] = pkt.AckPackets
+			l.Unlock()
+		}(i)
+	}
+	var packets types.Packets
+	for _, pkts := range pktss {
+		packets.BizPackets = append(packets.BizPackets, pkts...)
+	}
+	for _, acks := range ackss {
+		packets.AckPackets = append(packets.AckPackets, acks...)
+	}
+	return &packets, nil
+}
+
+func (c *Tendermint) getBlockPackets(height uint64, destChainType string) (*types.Packets, error) {
 	var bizPackets []packettypes.Packet
 	var ackPackets []types.AckPacket
 	res, err := c.TeleportSDK.TMServiceQuery.GetBlockByHeight(context.Background(), &tmservice.GetBlockByHeightRequest{
-		Height: int64(fromBlock),
+		Height: int64(height),
 	})
 	if err != nil {
 		return nil, err
