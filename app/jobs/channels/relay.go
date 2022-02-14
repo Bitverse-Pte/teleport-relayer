@@ -188,7 +188,7 @@ func (c *Channel) RelayPackets(height uint64) error {
 			return fmt.Errorf("get msg err:%+v", err)
 		}
 		updateHeight += 1
-	}else {
+	} else {
 		time.Sleep(10 * time.Second)
 		return fmt.Errorf("height + delayHeight >= verifyHeight")
 	}
