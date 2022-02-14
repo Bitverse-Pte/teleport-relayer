@@ -137,6 +137,7 @@ func (c *Tendermint) GetPackets(fromBlock, toBlock uint64, destChainType string)
 			l.Unlock()
 		}(i)
 	}
+	wg.Wait()
 	if anyErr != nil {
 		return  nil,anyErr
 	}
