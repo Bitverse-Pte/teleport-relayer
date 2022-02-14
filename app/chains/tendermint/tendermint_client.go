@@ -129,6 +129,7 @@ func (c *Tendermint) GetPackets(fromBlock, toBlock uint64, destChainType string)
 			pkt, err := c.getBlockPackets(height, destChainType)
 			if err != nil {
 				anyErr = err
+				return
 			}
 			l.Lock()
 			pktss[height-fromBlock] = pkt.BizPackets
