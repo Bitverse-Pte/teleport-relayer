@@ -8,7 +8,7 @@ import (
 )
 
 type IChain interface {
-	GetPackets(height uint64, destChainType string) (*types.Packets, error) // TODO update eth interface
+	GetPackets(fromBlock, toBlock uint64, destChainType string) (*types.Packets, error) // TODO update eth interface
 	GetProof(sourChainName, destChainName string, sequence uint64, height uint64, typ string) ([]byte, error)
 	RelayPackets(msgs []sdk.Msg) error
 	GetCommitmentsPacket(sourChainName, destChainName string, sequence uint64) error

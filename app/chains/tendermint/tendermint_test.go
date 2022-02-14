@@ -9,6 +9,8 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 
@@ -30,10 +32,13 @@ import (
 
 // editable settings for test
 const (
-	GrpcUrl  = "10.41.20.10:9090"
+	GrpcUrl  = "abd46ec6e28754f0ab2aae29deaa0c11-1510914274.ap-southeast-1.elb.amazonaws.com:9090"
 	GrpcUrl2 = "127.0.0.1:19090"
-	ChainId  = "teleport_9000-1"
+	ChainId  = "teleport_7001-1"
 	ChainId2 = "teleport_8544154630257-1"
+
+	localGrpc    = "localhost:9090"
+	localChainId = "teleport_9000-1"
 )
 
 var (
@@ -228,4 +233,27 @@ func Test2GetValSetByHeight(t *testing.T) {
 	// 	fmt.Println(err)
 	// 	fmt.Println("res===",ptres)
 	// }
+}
+
+func TestGenTendetmintHeader(t *testing.T) {
+	c, err := client.NewClient(localGrpc, localChainId)
+	require.NoError(t, err)
+	err = c.WithKeyring(keyring.NewInMemory(c.GetCtx().KeyringOptions...)).ImportMnemonic(testAcc1.name, testAcc1.mnemonic)
+	require.NoError(t, err)
+	tendermint := Tendermint{
+		TeleportSDK: c,
+		Codec:       MakeCodec(),
+	}
+	req := &types.GetBlockHeaderReq{
+		LatestHeight:   4926,
+		TrustedHeight:  4882,
+		RevisionNumber: 1,
+	}
+	header, err := tendermint.GetBlockHeader(req)
+	require.NoError(t, err)
+	h, ok := header.(*xibctendermint.Header)
+	require.True(t, ok)
+	headerBytes, _ := h.Marshal()
+	hexHeader := hex.EncodeToString(headerBytes)
+	fmt.Println(hexHeader)
 }

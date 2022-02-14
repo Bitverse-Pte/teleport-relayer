@@ -102,15 +102,15 @@ func newBsc(config *ChainConfig) (*Bsc, error) {
 
 func (b *Bsc) ClientUpdateValidate(revisionHeight, delayHeight, updateHeight uint64) (uint64, error) {
 
-	return updateHeight,nil
+	return updateHeight, nil
 }
 
-func (b *Bsc) GetPackets(height uint64, destChainType string) (*types.Packets, error) {
-	bizPackets, err := b.getPackets(height)
+func (b *Bsc) GetPackets(fromBlock, toBlock uint64, destChainType string) (*types.Packets, error) {
+	bizPackets, err := b.getPackets(fromBlock, toBlock)
 	if err != nil {
 		return nil, err
 	}
-	ackPackets, err := b.getAckPackets(height)
+	ackPackets, err := b.getAckPackets(fromBlock, toBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -437,13 +437,13 @@ func toBlockNumArg(number *big.Int) string {
 }
 
 // get packets from block
-func (b *Bsc) getPackets(height uint64) ([]packettypes.Packet, error) {
-	if strings.Contains(b.queryFilter,types.Packet) {
-		return nil,nil
+func (b *Bsc) getPackets(fromBlock, toBlock uint64) ([]packettypes.Packet, error) {
+	if strings.Contains(b.queryFilter, types.Packet) {
+		return nil, nil
 	}
 	address := common.HexToAddress(b.contractCfgGroup.Packet.Addr)
 	topic := b.contractCfgGroup.Packet.Topic
-	logs, err := b.getLogs(address, topic, height, height)
+	logs, err := b.getLogs(address, topic, fromBlock, toBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -469,13 +469,13 @@ func (b *Bsc) getPackets(height uint64) ([]packettypes.Packet, error) {
 }
 
 // get ack packets from block
-func (b *Bsc) getAckPackets(height uint64) ([]types.AckPacket, error) {
-	if strings.Contains(b.queryFilter,types.Ack) {
-		return nil,nil
+func (b *Bsc) getAckPackets(fromBlock, toBlock uint64) ([]types.AckPacket, error) {
+	if strings.Contains(b.queryFilter, types.Ack) {
+		return nil, nil
 	}
 	address := common.HexToAddress(b.contractCfgGroup.AckPacket.Addr)
 	topic := b.contractCfgGroup.AckPacket.Topic
-	logs, err := b.getLogs(address, topic, height, height)
+	logs, err := b.getLogs(address, topic, fromBlock, toBlock)
 	if err != nil {
 		return nil, err
 	}

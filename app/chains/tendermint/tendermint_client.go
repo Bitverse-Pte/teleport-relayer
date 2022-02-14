@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -114,7 +115,37 @@ func (c *Tendermint) ClientUpdateValidate(revisionHeight, delayHeight, updateHei
 	return updateHeight, nil
 }
 
-func (c *Tendermint) GetPackets(height uint64, destChainType string) (*types.Packets, error) {
+func (c *Tendermint) GetPackets(fromBlock, toBlock uint64, destChainType string) (*types.Packets, error) {
+	times := toBlock - fromBlock + 1
+	pktss := make([][]packettypes.Packet, times)
+	ackss := make([][]types.AckPacket, times)
+	var l sync.Mutex
+	var wg sync.WaitGroup
+	var anyErr error
+	for i := fromBlock; i <= toBlock; i++ {
+		go func(height uint64) {
+			defer wg.Done()
+			pkt, err := c.getBlockPackets(height, destChainType)
+			if err != nil {
+				anyErr = err
+			}
+			l.Lock()
+			pktss[height-fromBlock] = pkt.BizPackets
+			ackss[height-fromBlock] = pkt.AckPackets
+			l.Unlock()
+		}(i)
+	}
+	var packets types.Packets
+	for _, pkts := range pktss {
+		packets.BizPackets = append(packets.BizPackets, pkts...)
+	}
+	for _, acks := range ackss {
+		packets.AckPackets = append(packets.AckPackets, acks...)
+	}
+	return &packets, nil
+}
+
+func (c *Tendermint) getBlockPackets(height uint64, destChainType string) (*types.Packets, error) {
 	var bizPackets []packettypes.Packet
 	var ackPackets []types.AckPacket
 	res, err := c.TeleportSDK.TMServiceQuery.GetBlockByHeight(context.Background(), &tmservice.GetBlockByHeightRequest{
@@ -227,23 +258,23 @@ func (c *Tendermint) GetProof(sourChainName, destChainName string, sequence uint
 
 func (c *Tendermint) RelayPackets(msgs []sdk.Msg) error {
 	var err error
-	var packetMsgs  []sdk.Msg
-	for _,val := range msgs {
+	var packetMsgs []sdk.Msg
+	for _, val := range msgs {
 		switch pkt := val.(type) {
 		case *packettypes.MsgRecvPacket:
 			pkt.Signer = c.address
-			packetMsgs = append(packetMsgs,pkt )
+			packetMsgs = append(packetMsgs, pkt)
 		case *packettypes.MsgAcknowledgement:
 			pkt.Signer = c.address
-			packetMsgs = append(packetMsgs,pkt )
+			packetMsgs = append(packetMsgs, pkt)
 		default:
 			return fmt.Errorf("invalid packet type")
 		}
 	}
-	if len(packetMsgs)  == 0 {
+	if len(packetMsgs) == 0 {
 		return fmt.Errorf("invalid msgs or empty")
 	}
-	txf, err := teleportsdk.Prepare(c.TeleportSDK, packetMsgs[0].GetSigners()[0],packetMsgs[0])
+	txf, err := teleportsdk.Prepare(c.TeleportSDK, packetMsgs[0].GetSigners()[0], packetMsgs[0])
 	if err != nil {
 		return err
 	}

@@ -177,18 +177,18 @@ func (c *Channel) RelayPackets(height uint64) error {
 		verifyHeight = chainAHeight
 	}
 	if height+delayHeight+10 < verifyHeight {
-		pkt, err = c.batchGetMsg(height)
+		pkt, err = c.GetMsg(height, height+9)
 		if err != nil {
 			return fmt.Errorf("batchGetMsg error:%+v", err)
 		}
 		updateHeight += 10
 	} else if height+delayHeight < verifyHeight {
-		pkt, err = c.GetMsg(height)
+		pkt, err = c.GetMsg(height, height)
 		if err != nil {
 			return fmt.Errorf("get msg err:%+v", err)
 		}
 		updateHeight += 1
-	}else {
+	} else {
 		time.Sleep(10 * time.Second)
 		return fmt.Errorf("height + delayHeight >= verifyHeight")
 	}
@@ -211,32 +211,3 @@ func (c *Channel) RelayPackets(height uint64) error {
 	return nil
 }
 
-func (c *Channel) batchGetMsg(reqHeight uint64) ([]sdk.Msg, error) {
-	times := 10
-	msgss := make([][]sdk.Msg, times)
-	var l sync.Mutex
-	var wg sync.WaitGroup
-	var anyErr error
-	wg.Add(times)
-	for i := reqHeight; i < reqHeight+uint64(times); i++ {
-		go func(height uint64) {
-			defer wg.Done()
-			pkt, err := c.GetMsg(height)
-			if err != nil {
-				anyErr = err
-			}
-			l.Lock()
-			msgss[height-reqHeight] = pkt
-			l.Unlock()
-		}(i)
-	}
-	wg.Wait()
-	if anyErr != nil {
-		return nil, anyErr
-	}
-	var msgs []sdk.Msg
-	for _, val := range msgss {
-		msgs = append(msgs, val...)
-	}
-	return msgs, nil
-}

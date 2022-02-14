@@ -28,7 +28,7 @@ func TestNewBsc(t *testing.T) {
 func TestGetPackets(t *testing.T) {
 	bscClient := newBscClient(t)
 
-	packets, err := bscClient.GetPackets(15965605, "")
+	packets, err := bscClient.GetPackets(15965605, 15965605, "")
 	require.NoError(t, err)
 	require.NotNil(t, packets.BizPackets)
 }
