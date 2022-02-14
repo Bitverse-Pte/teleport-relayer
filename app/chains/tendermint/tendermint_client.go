@@ -122,6 +122,7 @@ func (c *Tendermint) GetPackets(fromBlock, toBlock uint64, destChainType string)
 	var l sync.Mutex
 	var wg sync.WaitGroup
 	var anyErr error
+	wg.Add(int(times))
 	for i := fromBlock; i <= toBlock; i++ {
 		go func(height uint64) {
 			defer wg.Done()
