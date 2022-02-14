@@ -2,6 +2,7 @@ package channels
 
 import (
 	"fmt"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"sync"
 	"time"
 
@@ -128,7 +129,6 @@ func (c *Channel) RelayTask(s *gocron.Scheduler) {
 			c.logger.Errorf("RelayPackets err : %+v", err)
 			return
 		}
-		c.relayHeight++
 	})
 	if err != nil {
 		panic(err)
@@ -193,7 +193,8 @@ func (c *Channel) RelayPackets(height uint64) error {
 		if err != nil {
 			return fmt.Errorf("get msg err:%+v", err)
 		}
-	} else {
+		updateHeight += 1
+	}else {
 		time.Sleep(10 * time.Second)
 		return fmt.Errorf("height + delayHeight >= verifyHeight")
 	}
@@ -202,7 +203,7 @@ func (c *Channel) RelayPackets(height uint64) error {
 		return nil
 	}
 	if c.chainA.ChainType() == types.Tendermint {
-		if err := c.UpdateClientByHeight(height); err != nil {
+		if err := c.UpdateClientByHeight(updateHeight); err != nil {
 			return err
 		}
 		time.Sleep(time.Second)
