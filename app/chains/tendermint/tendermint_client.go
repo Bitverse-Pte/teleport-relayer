@@ -114,11 +114,11 @@ func (c *Tendermint) ClientUpdateValidate(revisionHeight, delayHeight, updateHei
 	return updateHeight, nil
 }
 
-func (c *Tendermint) GetPackets(height uint64, destChainType string) (*types.Packets, error) {
+func (c *Tendermint) GetPackets(fromBlock, toBlock uint64, destChainType string) (*types.Packets, error) {
 	var bizPackets []packettypes.Packet
 	var ackPackets []types.AckPacket
 	res, err := c.TeleportSDK.TMServiceQuery.GetBlockByHeight(context.Background(), &tmservice.GetBlockByHeightRequest{
-		Height: int64(height),
+		Height: int64(fromBlock),
 	})
 	if err != nil {
 		return nil, err
@@ -227,23 +227,23 @@ func (c *Tendermint) GetProof(sourChainName, destChainName string, sequence uint
 
 func (c *Tendermint) RelayPackets(msgs []sdk.Msg) error {
 	var err error
-	var packetMsgs  []sdk.Msg
-	for _,val := range msgs {
+	var packetMsgs []sdk.Msg
+	for _, val := range msgs {
 		switch pkt := val.(type) {
 		case *packettypes.MsgRecvPacket:
 			pkt.Signer = c.address
-			packetMsgs = append(packetMsgs,pkt )
+			packetMsgs = append(packetMsgs, pkt)
 		case *packettypes.MsgAcknowledgement:
 			pkt.Signer = c.address
-			packetMsgs = append(packetMsgs,pkt )
+			packetMsgs = append(packetMsgs, pkt)
 		default:
 			return fmt.Errorf("invalid packet type")
 		}
 	}
-	if len(packetMsgs)  == 0 {
+	if len(packetMsgs) == 0 {
 		return fmt.Errorf("invalid msgs or empty")
 	}
-	txf, err := teleportsdk.Prepare(c.TeleportSDK, packetMsgs[0].GetSigners()[0],packetMsgs[0])
+	txf, err := teleportsdk.Prepare(c.TeleportSDK, packetMsgs[0].GetSigners()[0], packetMsgs[0])
 	if err != nil {
 		return err
 	}

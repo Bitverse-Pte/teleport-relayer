@@ -111,7 +111,7 @@ func newEth(config *ChainConfig) (*Eth, error) {
 
 func (eth *Eth) ClientUpdateValidate(revisionHeight, delayHeight, updateHeight uint64) (uint64, error) {
 
-	return updateHeight,nil
+	return updateHeight, nil
 }
 
 func (eth *Eth) TransferERC20(transferData transfer.TransferDataTypesERC20TransferData) error {
@@ -237,12 +237,12 @@ func (eth *Eth) reTryEthResult(hash string, n uint64) error {
 	return nil
 }
 
-func (eth *Eth) GetPackets(height uint64, destChainType string) (*types.Packets, error) {
-	bizPackets, err := eth.getPackets(height)
+func (eth *Eth) GetPackets(fromBlock, toBlock uint64, destChainType string) (*types.Packets, error) {
+	bizPackets, err := eth.getPackets(fromBlock, toBlock)
 	if err != nil {
 		return nil, err
 	}
-	ackPackets, err := eth.getAckPackets(height)
+	ackPackets, err := eth.getAckPackets(fromBlock, toBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -462,13 +462,13 @@ func toBlockNumArg(number *big.Int) string {
 }
 
 // get packets from block
-func (eth *Eth) getPackets(height uint64) ([]packettypes.Packet, error) {
-	if strings.Contains(eth.queryFilter,types.Packet) {
-		return nil,nil
+func (eth *Eth) getPackets(fromBlock, toBlock uint64) ([]packettypes.Packet, error) {
+	if strings.Contains(eth.queryFilter, types.Packet) {
+		return nil, nil
 	}
 	address := common.HexToAddress(eth.contractCfgGroup.Packet.Addr)
 	topic := eth.contractCfgGroup.Packet.Topic
-	logs, err := eth.getLogs(address, topic, height, height)
+	logs, err := eth.getLogs(address, topic, fromBlock, toBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -494,13 +494,13 @@ func (eth *Eth) getPackets(height uint64) ([]packettypes.Packet, error) {
 }
 
 // get ack packets from block
-func (eth *Eth) getAckPackets(height uint64) ([]types.AckPacket, error) {
-	if strings.Contains(eth.queryFilter,types.Ack) {
-		return nil,nil
+func (eth *Eth) getAckPackets(fromBlock, toBlock uint64) ([]types.AckPacket, error) {
+	if strings.Contains(eth.queryFilter, types.Ack) {
+		return nil, nil
 	}
 	address := common.HexToAddress(eth.contractCfgGroup.AckPacket.Addr)
 	topic := eth.contractCfgGroup.AckPacket.Topic
-	logs, err := eth.getLogs(address, topic, height, height)
+	logs, err := eth.getLogs(address, topic, fromBlock, toBlock)
 	if err != nil {
 		return nil, err
 	}

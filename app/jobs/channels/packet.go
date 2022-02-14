@@ -17,8 +17,8 @@ import (
 	packettypes "github.com/teleport-network/teleport/x/xibc/core/packet/types"
 )
 
-func (c *Channel) GetMsg(height uint64) ([]sdk.Msg, error) {
-	packets, err := c.chainA.GetPackets(height, c.chainB.ChainType()) // TODO
+func (c *Channel) GetMsg(fromBlock, toBlock uint64) ([]sdk.Msg, error) {
+	packets, err := c.chainA.GetPackets(fromBlock, toBlock, c.chainB.ChainType()) // TODO
 	if err != nil {
 		return nil, err
 	}
