@@ -135,6 +135,9 @@ func (c *Tendermint) GetPackets(fromBlock, toBlock uint64, destChainType string)
 			l.Unlock()
 		}(i)
 	}
+	if anyErr != nil {
+		return  nil,anyErr
+	}
 	var packets types.Packets
 	for _, pkts := range pktss {
 		packets.BizPackets = append(packets.BizPackets, pkts...)
