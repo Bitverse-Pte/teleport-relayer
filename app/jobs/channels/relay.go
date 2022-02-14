@@ -177,12 +177,12 @@ func (c *Channel) RelayPackets(height uint64) error {
 	if c.chainA.ChainType() == types.Tendermint {
 		verifyHeight = chainAHeight
 	}
-	if height+delayHeight+5 < verifyHeight {
+	if height+delayHeight+10 < verifyHeight {
 		pkt, err = c.batchGetMsg(height)
 		if err != nil {
 			return fmt.Errorf("batchGetMsg error:%+v", err)
 		}
-		updateHeight += 4
+		updateHeight += 9
 	} else if height+delayHeight < verifyHeight {
 		pkt, err = c.GetMsg(height)
 		if err != nil {
