@@ -47,9 +47,14 @@ func (a *App) Start() {
 		channel.RelayTask(s)
 		r.PUT(fmt.Sprintf("/relayer/%v/height", chainName), channel.UpgradeRelayHeight)
 		r.GET(fmt.Sprintf("/relayer/%v/height", chainName), channel.ViewRelayHeight)
-		r.PUT(fmt.Sprintf("/relayer/%v/extra_wait", chainName), channel.UpgradeExtraWait)
 		r.GET(fmt.Sprintf("/relayer/%v/extra_wait", chainName), channel.ViewExtraWait)
 	}
+	r.POST("/relayer/start", func(context *gin.Context) {
+		s.StartAsync()
+	})
+	r.POST("/relayer/stop", func(context *gin.Context) {
+		s.Stop()
+	})
 	s.StartAsync()
 	if err := r.Run(":8080"); err != nil {
 		panic(err)
