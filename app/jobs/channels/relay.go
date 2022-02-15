@@ -121,7 +121,6 @@ func (c *Channel) batchGetBlockHeader(reqHeight, revisionHeight, revisionNumber 
 func (c *Channel) RelayTask(s *gocron.Scheduler) {
 	relayJobs, err := s.Every(int(c.relayFrequency)).Seconds().Do(func() {
 		time.Sleep(time.Duration(c.extraWait*c.relayFrequency) * time.Second)
-		c.logger.Infof("start relay %+v! chainA height : %+v", c.chainA.ChainName(), c.relayHeight)
 		c.UpdateHeight()
 		if err := c.RelayPackets(c.relayHeight); err != nil {
 			c.logger.Errorf("RelayPackets err : %+v", err)
@@ -177,12 +176,14 @@ func (c *Channel) RelayPackets(height uint64) error {
 		verifyHeight = chainAHeight
 	}
 	if height+delayHeight+10 < verifyHeight {
+		c.logger.Infof("get packet fromBlock:%v,toBlock:%v", height, height+9)
 		pkt, err = c.GetMsg(height, height+9)
 		if err != nil {
 			return fmt.Errorf("batchGetMsg error:%+v", err)
 		}
 		updateHeight += 10
 	} else if height+delayHeight < verifyHeight {
+		c.logger.Infof("get packet fromBlock:%v,toBlock:%v", height, height)
 		pkt, err = c.GetMsg(height, height)
 		if err != nil {
 			return fmt.Errorf("get msg err:%+v", err)
@@ -202,18 +203,17 @@ func (c *Channel) RelayPackets(height uint64) error {
 		}
 		time.Sleep(time.Second)
 	}
-	chainBHeight,err := c.chainB.GetLatestHeight()
+	chainBHeight, err := c.chainB.GetLatestHeight()
 	if err != nil {
-		return fmt.Errorf("get chainB latest heigt error:%v",err)
+		return fmt.Errorf("get chainB latest heigt error:%v", err)
 	}
-	if res,err := c.chainB.RelayPackets(pkt); err != nil {
+	if res, err := c.chainB.RelayPackets(pkt); err != nil {
 		if !handleRecvPacketsError(err) {
-			c.logger.Info("RelayPackets result:",res)
+			c.logger.Info("RelayPackets result:", res)
 			return fmt.Errorf("failed to recv packet:%v", err.Error())
 		}
-		c.logger.Infof("RelayPackets result: %v , recv height : %v",res, chainBHeight)
+		c.logger.Infof("RelayPackets result: %v , recv height : %v", res, chainBHeight)
 	}
 	c.relayHeight = updateHeight
 	return nil
 }
-
