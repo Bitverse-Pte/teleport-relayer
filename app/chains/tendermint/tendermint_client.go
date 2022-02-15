@@ -139,7 +139,7 @@ func (c *Tendermint) GetPackets(fromBlock, toBlock uint64, destChainType string)
 	}
 	wg.Wait()
 	if anyErr != nil {
-		return  nil,anyErr
+		return nil, anyErr
 	}
 	var packets types.Packets
 	for _, pkts := range pktss {
@@ -262,37 +262,42 @@ func (c *Tendermint) GetProof(sourChainName, destChainName string, sequence uint
 
 // ConvertProofs converts crypto.ProofOps into MerkleProof
 
-func (c *Tendermint) RelayPackets(msgs []sdk.Msg) error {
+func (c *Tendermint) RelayPackets(msgs []sdk.Msg) (string, error) {
 	var err error
 	var packetMsgs []sdk.Msg
+	var packetDetail []string
 	for _, val := range msgs {
 		switch pkt := val.(type) {
 		case *packettypes.MsgRecvPacket:
 			pkt.Signer = c.address
 			packetMsgs = append(packetMsgs, pkt)
+			packetMsg := fmt.Sprintf("srcChain:%v,dest%v,sequence:%v chainType:packet", pkt.Packet.SourceChain, pkt.Packet.DestinationChain, pkt.Packet.Sequence)
+			packetDetail = append(packetDetail, packetMsg)
 		case *packettypes.MsgAcknowledgement:
 			pkt.Signer = c.address
 			packetMsgs = append(packetMsgs, pkt)
+			packetMsg := fmt.Sprintf("srcChain:%v,dest%v,sequence:%v chainType:ack", pkt.Packet.SourceChain, pkt.Packet.DestinationChain, pkt.Packet.Sequence)
+			packetDetail = append(packetDetail, packetMsg)
 		default:
-			return fmt.Errorf("invalid packet type")
+			return strings.Join(packetDetail,","), fmt.Errorf("invalid packet type")
 		}
 	}
 	if len(packetMsgs) == 0 {
-		return fmt.Errorf("invalid msgs or empty")
+		return strings.Join(packetDetail,","), fmt.Errorf("invalid msgs or empty")
 	}
 	txf, err := teleportsdk.Prepare(c.TeleportSDK, packetMsgs[0].GetSigners()[0], packetMsgs[0])
 	if err != nil {
-		return err
+		return strings.Join(packetDetail,","), err
 	}
 	txf = txf.WithFees(c.fees)
 	res, err := c.TeleportSDK.Broadcast(txf, packetMsgs...)
 	if err != nil {
-		return fmt.Errorf("broadcast tx error:%+v", err)
+		return strings.Join(packetDetail,","), fmt.Errorf("broadcast tx error:%+v", err)
 	}
 	if res.TxResponse.Code != 0 {
-		return fmt.Errorf(res.TxResponse.RawLog)
+		return strings.Join(packetDetail,","), fmt.Errorf(res.TxResponse.RawLog)
 	}
-	return nil
+	return fmt.Sprintf("Relay tx Hash:%v\nPacketDetail:%v\n", res.TxResponse.TxHash,strings.Join(packetDetail,",")), nil
 }
 
 func (c *Tendermint) GetBlockTimestamp(height uint64) (uint64, error) {

@@ -121,7 +121,7 @@ func (c *Channel) batchGetBlockHeader(reqHeight, revisionHeight, revisionNumber 
 func (c *Channel) RelayTask(s *gocron.Scheduler) {
 	relayJobs, err := s.Every(int(c.relayFrequency)).Seconds().Do(func() {
 		time.Sleep(time.Duration(c.extraWait*c.relayFrequency) * time.Second)
-		c.logger.Infof("start relay %+v! height : %+v", c.chainA.ChainName(), c.relayHeight)
+		c.logger.Infof("start relay %+v! chainA height : %+v", c.chainA.ChainName(), c.relayHeight)
 		c.UpdateHeight()
 		if err := c.RelayPackets(c.relayHeight); err != nil {
 			c.logger.Errorf("RelayPackets err : %+v", err)
@@ -202,10 +202,16 @@ func (c *Channel) RelayPackets(height uint64) error {
 		}
 		time.Sleep(time.Second)
 	}
-	if err := c.chainB.RelayPackets(pkt); err != nil {
+	chainBHeight,err := c.chainB.GetLatestHeight()
+	if err != nil {
+		return fmt.Errorf("get chainB latest heigt error:%v",err)
+	}
+	if res,err := c.chainB.RelayPackets(pkt); err != nil {
 		if !handleRecvPacketsError(err) {
+			c.logger.Info("RelayPackets result:",res)
 			return fmt.Errorf("failed to recv packet:%v", err.Error())
 		}
+		c.logger.Infof("RelayPackets result: %v , recv height : %v",res, chainBHeight)
 	}
 	c.relayHeight = updateHeight
 	return nil

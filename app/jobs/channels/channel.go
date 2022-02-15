@@ -178,7 +178,7 @@ func (c *Channel) evmClientUpdate() error {
 		header, err = c.chainA.GetBlockHeader(req)
 		if err != nil {
 			c.logger.Println("get blockHeader err", err)
-			return
+			return fmt.Errorf("get blockHeader err:%+v",err)
 		}
 		if err = c.chainB.UpdateClient(header, c.chainA.ChainName()); err != nil {
 			if isBifurcate(err) {

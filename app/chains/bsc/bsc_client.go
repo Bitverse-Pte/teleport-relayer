@@ -166,11 +166,14 @@ func (b *Bsc) GetProof(sourChainName, destChainName string, sequence uint64, hei
 	return json.Marshal(proof)
 }
 
-func (b *Bsc) RelayPackets(msgs []sdk.Msg) error {
+func (b *Bsc) RelayPackets(msgs []sdk.Msg) (string,error){
 	resultTx := &types.ResultTx{}
+	var packetDetail []string
 	for _, d := range msgs {
 		switch msg := d.(type) {
 		case *packettypes.MsgRecvPacket:
+			packetMsg := fmt.Sprintf("srcChain:%v,dest%v,sequence:%v chainType:packet", msg.Packet.SourceChain, msg.Packet.DestinationChain, msg.Packet.Sequence)
+			packetDetail = append(packetDetail, packetMsg)
 			tmpPack := contracts.PacketTypesPacket{
 				Sequence:    msg.Packet.Sequence,
 				Ports:       msg.Packet.Ports,
@@ -185,7 +188,7 @@ func (b *Bsc) RelayPackets(msgs []sdk.Msg) error {
 			}
 
 			if err := b.setPacketOpts(); err != nil {
-				return err
+				return packetMsg,err
 			}
 			result, err := b.contracts.Packet.RecvPacket(
 				b.bindOpts.packetTransactOpts,
@@ -194,11 +197,13 @@ func (b *Bsc) RelayPackets(msgs []sdk.Msg) error {
 				height,
 			)
 			if err != nil {
-				return err
+				return fmt.Sprintf("relayer tx hash:%v\n packet detail:%v",result.Hash().String(),packetMsg),err
 			}
 			resultTx.Hash += "," + result.Hash().String()
 
 		case *packettypes.MsgAcknowledgement:
+			packetMsg := fmt.Sprintf("srcChain:%v,dest%v,sequence:%v chainType:ack", msg.Packet.SourceChain, msg.Packet.DestinationChain, msg.Packet.Sequence)
+			packetDetail = append(packetDetail, packetMsg)
 			tmpPack := contracts.PacketTypesPacket{
 				Sequence:    msg.Packet.Sequence,
 				Ports:       msg.Packet.Ports,
@@ -213,7 +218,7 @@ func (b *Bsc) RelayPackets(msgs []sdk.Msg) error {
 			}
 
 			if err := b.setPacketOpts(); err != nil {
-				return err
+				return packetMsg,err
 			}
 
 			result, err := b.contracts.Packet.AcknowledgePacket(
@@ -222,16 +227,16 @@ func (b *Bsc) RelayPackets(msgs []sdk.Msg) error {
 				height,
 			)
 			if err != nil {
-				return err
+				return packetMsg,err
 			}
 			resultTx.Hash += "," + result.Hash().String()
 		}
 	}
 	resultTx.Hash = strings.Trim(resultTx.Hash, ",")
 	if err := b.reTryEthResult(resultTx.Hash, 0); err != nil {
-		return err
+		return fmt.Sprintf("relayer tx hash :%v\n,packet detail:%v",resultTx.Hash,strings.Join(packetDetail,",")),err
 	}
-	return nil
+	return fmt.Sprintf("relayer tx hash :%v\n,packet detail:%v",resultTx.Hash,strings.Join(packetDetail,",")),nil
 }
 
 func (b *Bsc) GetCommitmentsPacket(sourChainName, destChainName string, sequence uint64) error {
