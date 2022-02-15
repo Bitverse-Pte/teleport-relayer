@@ -472,7 +472,6 @@ func (eth *Eth) getPackets(fromBlock, toBlock uint64) ([]packettypes.Packet, err
 	if err != nil {
 		return nil, err
 	}
-
 	var bizPackets []packettypes.Packet
 	for _, log := range logs {
 		packSent, err := eth.contracts.Packet.ParsePacketSent(log)
