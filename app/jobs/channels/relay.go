@@ -213,8 +213,9 @@ func (c *Channel) RelayPackets(height uint64) error {
 			c.logger.Infof("RelayPackets result: %v\n , recv height : %v", res, chainBHeight)
 			return fmt.Errorf("RelayPackets error:%v",err)
 		}
-		c.logger.Infof("RelayPackets result: %v\n , recv height : %v", res, chainBHeight)
+		c.logger.Infof("RelayPackets result: %v\n" , res)
 	}
+	c.logger.Infof(" recv height : %v", chainBHeight)
 	c.relayHeight = updateHeight
 	return nil
 }
