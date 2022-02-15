@@ -210,9 +210,10 @@ func (c *Channel) RelayPackets(height uint64) error {
 	if res, err := c.chainB.RelayPackets(pkt); err != nil {
 		if !handleRecvPacketsError(err) {
 			c.logger.Info("RelayPackets result:", res)
-			return fmt.Errorf("failed to recv packet:%v", err.Error())
+			c.logger.Infof("RelayPackets result: %v\n , recv height : %v", res, chainBHeight)
+			return fmt.Errorf("RelayPackets error:%v",err)
 		}
-		c.logger.Infof("RelayPackets result: %v , recv height : %v", res, chainBHeight)
+		c.logger.Infof("RelayPackets result: %v\n , recv height : %v", res, chainBHeight)
 	}
 	c.relayHeight = updateHeight
 	return nil
