@@ -56,7 +56,11 @@ func (a *App) Start() {
 		s.Stop()
 	})
 	s.StartAsync()
-	if err := r.Run(":8080"); err != nil {
+	port := config.Port
+	if port == ""{
+		port = "8080"
+	}
+	if err := r.Run(fmt.Sprintf(":%v",port)); err != nil {
 		panic(err)
 	}
 }

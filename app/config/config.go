@@ -16,6 +16,7 @@ const (
 )
 
 var (
+	Port            string
 	Home            string
 	LocalConfig     string
 	UserDir, _      = os.UserHomeDir()
