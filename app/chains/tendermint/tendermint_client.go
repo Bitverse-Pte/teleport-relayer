@@ -695,9 +695,6 @@ func (c *Tendermint) getAckPackets(stringEvents sdk.StringEvents, destChainType 
 		if !ok {
 			return nil, fmt.Errorf("proto parse failed")
 		}
-		if event.GetSrcChain() != c.ChainName() && event.GetRelayChain() != c.ChainName() {
-			continue
-		}
 		sequence, err := strconv.Atoi(event.GetSequence())
 		if err != nil {
 			return nil, err
