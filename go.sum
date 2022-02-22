@@ -1100,6 +1100,8 @@ github.com/teleport-network/teleport v0.1.0-alpha1 h1:yEMP/8WahGtcUyms0uZI7NSNFQ
 github.com/teleport-network/teleport v0.1.0-alpha1/go.mod h1:vL3+IUDLOXt7Ep+YOTBeriFN3tP7cMmA5Rizerqav+A=
 github.com/teleport-network/teleport-sdk-go v0.0.0-alpha1 h1:wnGBm7rQP9b20aCWYEiBanNMErN72s0Dtz3A6j+5QDs=
 github.com/teleport-network/teleport-sdk-go v0.0.0-alpha1/go.mod h1:EPpt+kqn6fAAj4DLahCfdG+Icft3Jj2CLt2Dhtd6+tc=
+github.com/teleport-network/teleport-sdk-go v0.0.0-alpha1.0.20220222151836-5d9e74aaab6c h1:qQsAG5+NHUVMikDVa4UrLHGCKy79eZHxu3hephsPtS0=
+github.com/teleport-network/teleport-sdk-go v0.0.0-alpha1.0.20220222151836-5d9e74aaab6c/go.mod h1:vzes2nPEhLiyhweXjpQsqEbZoli4d88p2QkFFd0nnCY=
 github.com/tendermint/btcd v0.1.1 h1:0VcxPfflS2zZ3RiOAHkBiFUcPvbtRj5O7zHmcJWHV7s=
 github.com/tendermint/btcd v0.1.1/go.mod h1:DC6/m53jtQzr/NFmMNEu0rxf18/ktVoVtMrnDD5pN+U=
 github.com/tendermint/crypto v0.0.0-20191022145703-50d29ede1e15 h1:hqAk8riJvK4RMWx1aInLzndwxKalgi5rTqgfXxOxbEI=

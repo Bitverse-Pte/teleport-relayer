@@ -16,7 +16,7 @@ require (
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.7.0
 	github.com/teleport-network/teleport v0.1.0-alpha1
-	github.com/teleport-network/teleport-sdk-go v0.0.0-alpha1
+	github.com/teleport-network/teleport-sdk-go v0.0.0-alpha1.0.20220222151836-5d9e74aaab6c
 	github.com/tendermint/tendermint v0.34.15
 	golang.org/x/crypto v0.0.0-20220126234351-aa10faf2a1f8
 	gorm.io/driver/mysql v1.2.3
