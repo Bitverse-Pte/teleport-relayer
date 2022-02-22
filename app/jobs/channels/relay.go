@@ -84,7 +84,7 @@ func (c *Channel) UpdateClientByHeight(height uint64) error {
 }
 
 func (c *Channel) batchGetBlockHeader(reqHeight, revisionHeight, revisionNumber uint64) ([]exported.Header, error) {
-	times := 5
+	times := 10
 	headers := make([]exported.Header, times)
 	var l sync.Mutex
 	var wg sync.WaitGroup
