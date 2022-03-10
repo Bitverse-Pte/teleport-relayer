@@ -41,7 +41,7 @@ func (c *Channel) checkClient() error {
 		return fmt.Errorf("get lightClient client state fail:%+v", err)
 	}
 	if clientState.GetLatestHeight().GetRevisionHeight() == c.checkHeight {
-		panic("client height not updated for a long time")
+		return fmt.Errorf("client height not updated for a long time")
 	} else {
 		c.checkHeight = clientState.GetLatestHeight().GetRevisionHeight()
 	}
