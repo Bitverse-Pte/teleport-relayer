@@ -197,7 +197,7 @@ func (b *Bsc) RelayPackets(msgs []sdk.Msg) (string,error){
 				height,
 			)
 			if err != nil {
-				return fmt.Sprintf("relayer tx hash:%v\n packet detail:%v",result.Hash().String(),packetMsg),err
+				return fmt.Sprintf("relay result:%v\n packet detail:%v",result,packetMsg),err
 			}
 			resultTx.Hash += "," + result.Hash().String()
 
