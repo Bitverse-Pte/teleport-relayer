@@ -128,7 +128,7 @@ func (c *Channel) RelayTask(s *gocron.Scheduler) {
 		}
 	})
 	if err != nil {
-		panic(err)
+		c.logger.Fatal(fmt.Errorf("new relay Jobs error:%+v",err))
 	}
 	relayJobs.SingletonMode()
 	if c.chainA.ChainType() == types.ETH || c.chainA.ChainType() == types.BSC {
@@ -140,7 +140,7 @@ func (c *Channel) RelayTask(s *gocron.Scheduler) {
 			}
 		})
 		if err != nil {
-			panic(err)
+			c.logger.Fatal(fmt.Errorf("new evmClientUpdate Jobs error:%+v",err))
 		}
 		updateJobs.SingletonMode()
 		checkJob, err := s.Every(10).Minute().Do(func() {
@@ -149,7 +149,7 @@ func (c *Channel) RelayTask(s *gocron.Scheduler) {
 			}
 		})
 		if err != nil {
-			panic(err)
+			c.logger.Fatal("new checkJob error:",err)
 		}
 		checkJob.SingletonMode()
 	}

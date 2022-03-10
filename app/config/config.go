@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -28,7 +29,7 @@ func InitConfig() {
 		Home = DefaultHomePath
 	}
 	if err := configInit(Home); err != nil {
-		panic(err)
+		panic(fmt.Errorf("config init error:%+v",err))
 	}
 }
 

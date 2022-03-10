@@ -61,7 +61,7 @@ func (a *App) Start() {
 		port = "8080"
 	}
 	if err := r.Run(fmt.Sprintf(":%v",port)); err != nil {
-		panic(err)
+		panic(fmt.Errorf("route run error:%+v",err))
 	}
 }
 

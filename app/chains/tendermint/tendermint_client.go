@@ -79,14 +79,14 @@ func NewTendermintClient(
 	cdc := MakeCodec()
 	cli, err := client.NewClient(config.GrpcAddr, config.ChainID)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("tendermint new client error:%+v",err))
 	}
 	if err := cli.WithKeyring(keyring.NewInMemory(cli.GetCtx().KeyringOptions...)).ImportMnemonic(config.Key.Name, config.Key.Mnemonic); err != nil {
-		panic(err)
+		panic(fmt.Errorf("tendermint cli.WithKeyring error:%+v",err))
 	}
 	address, err := cli.Key(config.Key.Name)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("cli.Key error:%+v",err))
 	}
 	return &Tendermint{
 		chainType:             chainType,

@@ -82,7 +82,7 @@ func NewChannel(
 
 func (c *Channel) UpdateHeight() {
 	if err := c.state.Write(c.relayHeight); err != nil {
-		panic(err)
+		panic(fmt.Errorf("state.Write error:%+v",err))
 	}
 }
 
@@ -138,7 +138,7 @@ func (c *Channel) EvmClientUpdate(s *gocron.Scheduler) {
 			}
 		})
 		if err != nil {
-			panic(err)
+			panic(fmt.Errorf("new EvmClientUpdate jobs error:%+v",err))
 		}
 		jobs.SingletonMode()
 	}
