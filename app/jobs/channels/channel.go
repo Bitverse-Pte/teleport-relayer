@@ -47,6 +47,7 @@ func NewChannel(
 	source interfaces.IChain,
 	dest interfaces.IChain,
 	height uint64,
+	revisedHeight uint64,
 	cacheName string,
 	relayFrequency uint64,
 	logger *log.Logger,
@@ -68,6 +69,12 @@ func NewChannel(
 	}
 	if stateData.LatestHeight != 0 {
 		startHeight = stateData.LatestHeight
+	}
+	if revisedHeight != 0{
+		if err := state.Write(revisedHeight);err != nil {
+			panic(fmt.Errorf("state.Write revisedHeight error:%+v",err))
+		}
+		startHeight = revisedHeight
 	}
 	return &Channel{
 		chainA:         source,

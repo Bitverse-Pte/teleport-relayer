@@ -29,7 +29,7 @@ func InitConfig() {
 		Home = DefaultHomePath
 	}
 	if err := configInit(Home); err != nil {
-		panic(fmt.Errorf("config init error:%+v",err))
+		panic(fmt.Errorf("config init error:%+v", err))
 	}
 }
 
@@ -146,8 +146,9 @@ type (
 	}
 
 	Cache struct {
-		Filename    string `toml:"filename"`
-		StartHeight uint64 `toml:"start_height"`
+		Filename      string `toml:"filename"`
+		StartHeight   uint64 `toml:"start_height"`
+		RevisedHeight uint64 `toml:"revised_height"`
 	}
 )
 
