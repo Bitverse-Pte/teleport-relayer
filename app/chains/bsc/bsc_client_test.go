@@ -1,13 +1,20 @@
 package bsc
 
 import (
+	"context"
+	"math/big"
 	"testing"
 
-	interfaces2 "github.com/teleport-network/teleport-relayer/app/interfaces"
+	"github.com/ethereum/go-ethereum/rpc"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/teleport-network/teleport-relayer/app/types"
+	"github.com/teleport-network/teleport/x/xibc/core/host"
 )
 
 const (
@@ -33,7 +40,26 @@ func TestGetPackets(t *testing.T) {
 	require.NotNil(t, packets.BizPackets)
 }
 
-func newBscClient(t *testing.T) interfaces2.IChain {
+func TestGetProofIndex(t *testing.T) {
+	rpcClient, err := rpc.DialContext(context.Background(), testUrl)
+	bscClient := &Bsc{gethRpcCli: rpcClient}
+
+	require.NoError(t, err)
+
+	for i := int64(155) - 55; i <= 155+100; i++ {
+		hash := crypto.Keccak256Hash(
+			host.PacketCommitmentKey("bsc-testnet", "teleport", 1),
+			common.LeftPadBytes(big.NewInt(i).Bytes(), 32),
+		)
+		proof, err := bscClient.getProof(context.Background(), common.HexToAddress("0x73f9b1905473e33a30c4b339d3ce87d95a3bfe73"), []string{hexutil.Encode(hash.Bytes())}, big.NewInt(17459374))
+		require.NoError(t, err)
+		if len(proof.StorageProof) > 1 || proof.StorageProof[0].Value.Uint64() > 0 {
+			t.Log(i)
+		}
+	}
+}
+
+func newBscClient(t *testing.T) *Bsc {
 	optPrivKey := "FB0536CF27B7F16EAB7F8BBD1771980E83ECE69F50BE30A7161D7E643645958D"
 
 	contractCfgGroup := NewContractCfgGroup()
