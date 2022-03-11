@@ -19,6 +19,8 @@ import (
 
 var _ IChannel = new(Channel)
 
+const DefaultBatchSize uint64 = 10
+
 type IChannel interface {
 	RelayTask(s *gocron.Scheduler)
 	EvmClientUpdate(s *gocron.Scheduler)
@@ -39,29 +41,27 @@ type Channel struct {
 	extraWait      uint64 // waitTime = (extraWait * relayFrequency) second
 	state          *cache.CacheFileWriter
 	logger         *log.Logger
+	batchSize      uint64
 }
 
 // TODO: pullHeight   relayHeight   chainAHeight   clientAHeight
 
 func NewChannel(
-	source interfaces.IChain,
-	dest interfaces.IChain,
-	height uint64,
-	revisedHeight uint64,
-	cacheName string,
-	relayFrequency uint64,
+	chainA interfaces.IChain,
+	chainB interfaces.IChain,
+	chainACfg config.ChainCfg,
 	logger *log.Logger,
 ) (
 	IChannel,
 	error,
 ) {
 	var startHeight uint64
-	state := cache.NewCacheFileWriter(config.Home, config.DefaultCacheDirName, cacheName)
+	state := cache.NewCacheFileWriter(config.Home, config.DefaultCacheDirName, chainACfg.Cache.Filename)
 	stateData := state.LoadCache()
-	if source.ChainType() == types.Tendermint {
-		startHeight = height
+	if chainA.ChainType() == types.Tendermint {
+		startHeight = chainACfg.Cache.StartHeight
 	} else {
-		clientStatus, err := dest.GetLightClientState(source.ChainName())
+		clientStatus, err := chainB.GetLightClientState(chainA.ChainName())
 		if err != nil {
 			return nil, err
 		}
@@ -70,20 +70,25 @@ func NewChannel(
 	if stateData.LatestHeight != 0 {
 		startHeight = stateData.LatestHeight
 	}
-	if revisedHeight != 0{
-		if err := state.Write(revisedHeight);err != nil {
+	if chainACfg.Cache.RevisedHeight != 0{
+		if err := state.Write(chainACfg.Cache.RevisedHeight);err != nil {
 			panic(fmt.Errorf("state.Write revisedHeight error:%+v",err))
 		}
-		startHeight = revisedHeight
+		startHeight = chainACfg.Cache.RevisedHeight
+	}
+	batchSize := DefaultBatchSize
+	if chainACfg.BatchSize != 0 {
+		batchSize = chainACfg.BatchSize
 	}
 	return &Channel{
-		chainA:         source,
-		chainB:         dest,
+		chainA:         chainA,
+		chainB:         chainB,
 		relayHeight:    startHeight,
-		chainName:      source.ChainName(),
-		relayFrequency: relayFrequency,
+		chainName:      chainA.ChainName(),
+		relayFrequency: chainACfg.RelayFrequency,
 		state:          state,
 		logger:         logger,
+		batchSize:      batchSize,
 	}, nil
 }
 
@@ -166,7 +171,7 @@ func (c *Channel) evmClientUpdate() error {
 	revisionHeight := clientState.GetLatestHeight().GetRevisionHeight()
 	revisionNumber := clientState.GetLatestHeight().GetRevisionNumber()
 	delayHeight := clientState.GetDelayBlock()
-	fmt.Println("chainAHeight",chainAHeight)
+	c.logger.Println("chainAHeight", chainAHeight)
 	c.logger.Println("update client updateHeight:", updateHeight)
 	if chainAHeight > updateHeight+delayHeight + 50 {
 		headers, err := c.batchGetBlockHeader(updateHeight, revisionHeight, revisionNumber,50)
@@ -175,8 +180,14 @@ func (c *Channel) evmClientUpdate() error {
 		}
 		return c.chainB.BatchUpdateClient(headers, c.chainA.ChainName())
 	}
-	if chainAHeight > updateHeight+delayHeight + 10 {
-		headers, err := c.batchGetBlockHeader(updateHeight, revisionHeight, revisionNumber,10)
+	if chainAHeight > updateHeight+delayHeight+c.batchSize {
+		headers, err := c.batchGetBlockHeader(updateHeight, revisionHeight, revisionNumber,c.batchSize)
+		if err != nil {
+			return fmt.Errorf("batchGetBlockHeader error:%+v", err)
+		}
+		return c.chainB.BatchUpdateClient(headers, c.chainA.ChainName())
+	} else if (chainAHeight < updateHeight+delayHeight+c.batchSize) && (chainAHeight > updateHeight+delayHeight) {
+		headers, err := c.batchGetBlockHeader(updateHeight, revisionHeight, revisionNumber,chainAHeight - updateHeight - delayHeight)
 		if err != nil {
 			return fmt.Errorf("batchGetBlockHeader error:%+v", err)
 		}
@@ -192,7 +203,7 @@ func (c *Channel) evmClientUpdate() error {
 		header, err = c.chainA.GetBlockHeader(req)
 		if err != nil {
 			c.logger.Println("get blockHeader err", err)
-			return fmt.Errorf("get blockHeader err:%+v",err)
+			return fmt.Errorf("get blockHeader err:%+v", err)
 		}
 		if err = c.chainB.UpdateClient(header, c.chainA.ChainName()); err != nil {
 			if isBifurcate(err) {

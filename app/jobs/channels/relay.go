@@ -83,13 +83,13 @@ func (c *Channel) UpdateClientByHeight(height uint64) error {
 	return c.chainB.UpdateClient(header, c.chainA.ChainName())
 }
 
-func (c *Channel) batchGetBlockHeader(reqHeight, revisionHeight, revisionNumber uint64,batchSize int) ([]exported.Header, error) {
+func (c *Channel) batchGetBlockHeader(reqHeight, revisionHeight, revisionNumber,batchSize uint64) ([]exported.Header, error) {
 	times := batchSize
 	headers := make([]exported.Header, times)
 	var l sync.Mutex
 	var wg sync.WaitGroup
-	wg.Add(times)
-	for i := reqHeight; i < reqHeight+uint64(times); i++ {
+	wg.Add(int(times))
+	for i := reqHeight; i < reqHeight+times; i++ {
 		go func(height uint64) {
 			defer wg.Done()
 			var header exported.Header
@@ -182,20 +182,20 @@ func (c *Channel) RelayPackets(height uint64) error {
 			return fmt.Errorf("batchGetMsg error:%+v", err)
 		}
 		updateHeight += 50
-	} else if height+delayHeight+10 < verifyHeight {
+	} else if height+delayHeight+c.batchSize < verifyHeight {
 		c.logger.Infof("get packet fromBlock:%v,toBlock:%v", height, height+9)
-		pkt, err = c.GetMsg(height, height+9)
+		pkt, err = c.GetMsg(height, height+c.batchSize-1)
 		if err != nil {
 			return fmt.Errorf("batchGetMsg error:%+v", err)
 		}
-		updateHeight += 10
+		updateHeight += c.batchSize
 	} else if height+delayHeight < verifyHeight {
 		c.logger.Infof("get packet fromBlock:%v,toBlock:%v", height, height)
-		pkt, err = c.GetMsg(height, height)
+		pkt, err = c.GetMsg(height, verifyHeight-delayHeight-1)
 		if err != nil {
 			return fmt.Errorf("get msg err:%+v", err)
 		}
-		updateHeight += 1
+		updateHeight += verifyHeight - delayHeight - height
 	} else {
 		time.Sleep(10 * time.Second)
 		return fmt.Errorf("height + delayHeight >= verifyHeight")
@@ -218,9 +218,9 @@ func (c *Channel) RelayPackets(height uint64) error {
 		if !handleRecvPacketsError(err) {
 			c.logger.Info("RelayPackets result:", res)
 			c.logger.Infof("RelayPackets result: %v\n , recv height : %v", res, chainBHeight)
-			return fmt.Errorf("RelayPackets error:%v",err)
+			return fmt.Errorf("RelayPackets error:%v", err)
 		}
-		c.logger.Infof("RelayPackets result: %v\n" , res)
+		c.logger.Infof("RelayPackets result: %v\n", res)
 	}
 	c.logger.Infof(" recv height : %v", chainBHeight)
 	c.relayHeight = updateHeight

@@ -60,6 +60,7 @@ type (
 
 	ChainCfg struct {
 		RelayFrequency uint64     `toml:"relay_frequency"`
+		BatchSize      uint64     `toml:"batch_size"`
 		Cache          Cache      `toml:"cache"`
 		Tendermint     Tendermint `toml:"tendermint"`
 		Eth            Eth        `toml:"eth"`

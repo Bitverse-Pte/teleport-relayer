@@ -1,6 +1,7 @@
 package channels
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -32,6 +33,13 @@ func (c *Channel) GetMsg(fromBlock, toBlock uint64) ([]sdk.Msg, error) {
 	}
 	proofHeight := clientState.GetLatestHeight().GetRevisionHeight() - delayHeight
 	var relayPackets []sdk.Msg
+	if len(packets.BizPackets) != 0 {
+		c.logger.Printf("has queried packet number:%v", len(packets.BizPackets))
+	}
+	if len(packets.AckPackets) != 0 {
+		c.logger.Printf("has queried ack number:%v", len(packets.AckPackets))
+	}
+
 	for _, pack := range packets.BizPackets {
 		if pack.SourceChain == c.chainB.ChainName() || (pack.DestinationChain != c.chainB.ChainName() && pack.RelayChain != c.chainB.ChainName()) {
 			continue
@@ -48,6 +56,7 @@ func (c *Channel) GetMsg(fromBlock, toBlock uint64) ([]sdk.Msg, error) {
 			return nil, err
 		}
 		if isNotReceipt {
+			c.logger.Printf("packet has been recived,sourchain:%v,destchain:%v,sequence:%v", pack.SourceChain, pack.DestinationChain, pack.Sequence)
 			continue
 		}
 		proof, err := c.chainA.GetProof(pack.SourceChain, pack.DestinationChain, pack.Sequence, proofHeight, types.CommitmentPoof)
@@ -71,7 +80,7 @@ func (c *Channel) GetMsg(fromBlock, toBlock uint64) ([]sdk.Msg, error) {
 			pack.Packet.Sequence,
 		); err != nil {
 			if strings.Contains(err.Error(), "connection") {
-				return nil, errors.ErrGetCommitmentPacket
+				return nil, fmt.Errorf("failed to get commitment packet")
 			}
 			continue
 		}
@@ -81,6 +90,7 @@ func (c *Channel) GetMsg(fromBlock, toBlock uint64) ([]sdk.Msg, error) {
 			return nil, err
 		}
 		if isNotReceipt {
+			c.logger.Printf("packet has been recived,sourchain:%v,destchain:%v,sequence:%v", pack.Packet.SourceChain, pack.Packet.DestinationChain, pack.Packet.Sequence)
 			continue
 		}
 		// query proof
