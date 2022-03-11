@@ -168,8 +168,15 @@ func (c *Channel) evmClientUpdate() error {
 	delayHeight := clientState.GetDelayBlock()
 	fmt.Println("chainAHeight",chainAHeight)
 	c.logger.Println("update client updateHeight:", updateHeight)
+	if chainAHeight > updateHeight+delayHeight + 50 {
+		headers, err := c.batchGetBlockHeader(updateHeight, revisionHeight, revisionNumber,50)
+		if err != nil {
+			return fmt.Errorf("batchGetBlockHeader error:%+v", err)
+		}
+		return c.chainB.BatchUpdateClient(headers, c.chainA.ChainName())
+	}
 	if chainAHeight > updateHeight+delayHeight + 10 {
-		headers, err := c.batchGetBlockHeader(updateHeight, revisionHeight, revisionNumber)
+		headers, err := c.batchGetBlockHeader(updateHeight, revisionHeight, revisionNumber,10)
 		if err != nil {
 			return fmt.Errorf("batchGetBlockHeader error:%+v", err)
 		}

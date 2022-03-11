@@ -83,8 +83,8 @@ func (c *Channel) UpdateClientByHeight(height uint64) error {
 	return c.chainB.UpdateClient(header, c.chainA.ChainName())
 }
 
-func (c *Channel) batchGetBlockHeader(reqHeight, revisionHeight, revisionNumber uint64) ([]exported.Header, error) {
-	times := 10
+func (c *Channel) batchGetBlockHeader(reqHeight, revisionHeight, revisionNumber uint64,batchSize int) ([]exported.Header, error) {
+	times := batchSize
 	headers := make([]exported.Header, times)
 	var l sync.Mutex
 	var wg sync.WaitGroup
