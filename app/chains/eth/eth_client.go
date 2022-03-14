@@ -128,7 +128,7 @@ func (eth *Eth) TransferERC20(transferData transfer.TransferDataTypesERC20Transf
 	return eth.reTryEthResult(resultTx.Hash, 0)
 }
 
-func (eth *Eth) RelayPackets(msgs []sdk.Msg) (string,error){
+func (eth *Eth) RelayPackets(msgs []sdk.Msg) (string, error) {
 	resultTx := &types.ResultTx{}
 	var packetDetail []string
 	for _, d := range msgs {
@@ -149,7 +149,7 @@ func (eth *Eth) RelayPackets(msgs []sdk.Msg) (string,error){
 				RevisionHeight: msg.ProofHeight.RevisionHeight,
 			}
 			if err := eth.setPacketOpts(); err != nil {
-				return packetMsg,err
+				return packetMsg, err
 			}
 			result, err := eth.contracts.Packet.RecvPacket(
 				eth.bindOpts.packetTransactOpts,
@@ -158,7 +158,7 @@ func (eth *Eth) RelayPackets(msgs []sdk.Msg) (string,error){
 				height,
 			)
 			if err != nil {
-				return fmt.Sprintf("relayer tx hash:%v\n packet detail:%v",result.Hash().String(),packetMsg),err
+				return fmt.Sprintf("relayer tx hash:%v\n packet detail:%v", result.Hash().String(), packetMsg), err
 			}
 			resultTx.Hash += "," + result.Hash().String()
 		case *packettypes.MsgAcknowledgement:
@@ -178,7 +178,7 @@ func (eth *Eth) RelayPackets(msgs []sdk.Msg) (string,error){
 			}
 
 			if err := eth.setPacketOpts(); err != nil {
-				return packetMsg,err
+				return packetMsg, err
 			}
 
 			result, err := eth.contracts.Packet.AcknowledgePacket(
@@ -187,16 +187,16 @@ func (eth *Eth) RelayPackets(msgs []sdk.Msg) (string,error){
 				height,
 			)
 			if err != nil {
-				return packetMsg,err
+				return packetMsg, err
 			}
 			resultTx.Hash += "," + result.Hash().String()
 		}
 	}
 	resultTx.Hash = strings.Trim(resultTx.Hash, ",")
 	if err := eth.reTryEthResult(resultTx.Hash, 0); err != nil {
-		return fmt.Sprintf("relayer tx hash :%v\n,packet detail:%v",resultTx.Hash,strings.Join(packetDetail,",")),err
+		return fmt.Sprintf("relayer tx hash :%v\n,packet detail:%v", resultTx.Hash, strings.Join(packetDetail, ",")), err
 	}
-	return fmt.Sprintf("relayer tx hash :%v\n,packet detail:%v",resultTx.Hash,strings.Join(packetDetail,",")),nil
+	return fmt.Sprintf("relayer tx hash :%v\n,packet detail:%v", resultTx.Hash, strings.Join(packetDetail, ",")), nil
 }
 
 func (eth *Eth) UpdateClient(header exported.Header, chainName string) error {

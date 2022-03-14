@@ -2,6 +2,7 @@ package tendermint
 
 import (
 	"fmt"
+
 	log "github.com/sirupsen/logrus"
 
 	"github.com/teleport-network/teleport-relayer/app/config"
@@ -17,7 +18,7 @@ func InitTendermintChain(cfg *config.ChainCfg, logger *log.Logger) interfaces.IC
 		&cfg.Tendermint,
 	)
 	if err != nil {
-		panic(fmt.Errorf("NewTendermintClient error:%+v",err))
+		panic(fmt.Errorf("NewTendermintClient error:%+v", err))
 	}
 	return chainClient
 }

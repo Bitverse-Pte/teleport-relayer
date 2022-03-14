@@ -166,7 +166,7 @@ func (b *Bsc) GetProof(sourChainName, destChainName string, sequence uint64, hei
 	return json.Marshal(proof)
 }
 
-func (b *Bsc) RelayPackets(msgs []sdk.Msg) (string,error){
+func (b *Bsc) RelayPackets(msgs []sdk.Msg) (string, error) {
 	resultTx := &types.ResultTx{}
 	var packetDetail []string
 	for _, d := range msgs {
@@ -188,7 +188,7 @@ func (b *Bsc) RelayPackets(msgs []sdk.Msg) (string,error){
 			}
 
 			if err := b.setPacketOpts(); err != nil {
-				return packetMsg,err
+				return packetMsg, err
 			}
 			result, err := b.contracts.Packet.RecvPacket(
 				b.bindOpts.packetTransactOpts,
@@ -197,7 +197,7 @@ func (b *Bsc) RelayPackets(msgs []sdk.Msg) (string,error){
 				height,
 			)
 			if err != nil {
-				return fmt.Sprintf("relay result:%v\n packet detail:%v",result,packetMsg),err
+				return fmt.Sprintf("relay result:%v\n packet detail:%v", result, packetMsg), err
 			}
 			resultTx.Hash += "," + result.Hash().String()
 
@@ -218,7 +218,7 @@ func (b *Bsc) RelayPackets(msgs []sdk.Msg) (string,error){
 			}
 
 			if err := b.setPacketOpts(); err != nil {
-				return packetMsg,err
+				return packetMsg, err
 			}
 
 			result, err := b.contracts.Packet.AcknowledgePacket(
@@ -227,16 +227,16 @@ func (b *Bsc) RelayPackets(msgs []sdk.Msg) (string,error){
 				height,
 			)
 			if err != nil {
-				return packetMsg,err
+				return packetMsg, err
 			}
 			resultTx.Hash += "," + result.Hash().String()
 		}
 	}
 	resultTx.Hash = strings.Trim(resultTx.Hash, ",")
 	if err := b.reTryEthResult(resultTx.Hash, 0); err != nil {
-		return fmt.Sprintf("relayer tx hash :%v\n,packet detail:%v",resultTx.Hash,strings.Join(packetDetail,",")),err
+		return fmt.Sprintf("relayer tx hash :%v\n,packet detail:%v", resultTx.Hash, strings.Join(packetDetail, ",")), err
 	}
-	return fmt.Sprintf("relayer tx hash :%v\n,packet detail:%v",resultTx.Hash,strings.Join(packetDetail,",")),nil
+	return fmt.Sprintf("relayer tx hash :%v\n,packet detail:%v", resultTx.Hash, strings.Join(packetDetail, ",")), nil
 }
 
 func (b *Bsc) GetCommitmentsPacket(sourChainName, destChainName string, sequence uint64) error {

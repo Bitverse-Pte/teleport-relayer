@@ -12,8 +12,9 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/teleport-network/teleport-relayer/app/interfaces"
 	teleportsdk "github.com/teleport-network/teleport-sdk-go/client"
+
+	"github.com/teleport-network/teleport-relayer/app/interfaces"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcrypto "github.com/tendermint/tendermint/crypto"
@@ -65,7 +66,7 @@ type Tendermint struct {
 	chainType             string
 	updateClientFrequency uint64
 	queryFilter           string
-	fees                  string
+	gasPrice              string
 }
 
 func NewTendermintClient(
@@ -79,14 +80,14 @@ func NewTendermintClient(
 	cdc := MakeCodec()
 	cli, err := client.NewClient(config.GrpcAddr, config.ChainID)
 	if err != nil {
-		panic(fmt.Errorf("tendermint new client error:%+v",err))
+		panic(fmt.Errorf("tendermint new client error:%+v", err))
 	}
 	if err := cli.WithKeyring(keyring.NewInMemory(cli.GetCtx().KeyringOptions...)).ImportMnemonic(config.Key.Name, config.Key.Mnemonic); err != nil {
-		panic(fmt.Errorf("tendermint cli.WithKeyring error:%+v",err))
+		panic(fmt.Errorf("tendermint cli.WithKeyring error:%+v", err))
 	}
 	address, err := cli.Key(config.Key.Name)
 	if err != nil {
-		panic(fmt.Errorf("cli.Key error:%+v",err))
+		panic(fmt.Errorf("cli.Key error:%+v", err))
 	}
 	return &Tendermint{
 		chainType:             chainType,
@@ -96,7 +97,7 @@ func NewTendermintClient(
 		updateClientFrequency: updateClientFrequency,
 		address:               address,
 		queryFilter:           config.QueryFilter,
-		fees:                  strconv.FormatInt(config.Fee.Amount, 10) + config.Fee.Denom,
+		gasPrice:              config.GasPrice,
 	}, err
 }
 
@@ -279,25 +280,32 @@ func (c *Tendermint) RelayPackets(msgs []sdk.Msg) (string, error) {
 			packetMsg := fmt.Sprintf("srcChain:%v,dest%v,sequence:%v chainType:ack", pkt.Packet.SourceChain, pkt.Packet.DestinationChain, pkt.Packet.Sequence)
 			packetDetail = append(packetDetail, packetMsg)
 		default:
-			return strings.Join(packetDetail,","), fmt.Errorf("invalid packet type")
+			return strings.Join(packetDetail, ","), fmt.Errorf("invalid packet type")
 		}
 	}
 	if len(packetMsgs) == 0 {
-		return strings.Join(packetDetail,","), fmt.Errorf("invalid msgs or empty")
+		return strings.Join(packetDetail, ","), fmt.Errorf("invalid msgs or empty")
 	}
 	txf, err := teleportsdk.Prepare(c.TeleportSDK, packetMsgs[0].GetSigners()[0], packetMsgs[0])
 	if err != nil {
-		return strings.Join(packetDetail,","), err
+		return strings.Join(packetDetail, ","), err
 	}
-	txf = txf.WithFees(c.fees)
+	_, esGas, err := c.TeleportSDK.CalculateGas(txf, packetMsgs...)
+	if err != nil {
+		return "", fmt.Errorf("CalculateGas failed:%+v", err)
+	}
+	gas := float32(esGas) * 1.5
+	txf = txf.WithGas(uint64(gas))
+	txf = txf.WithGasPrices(c.gasPrice)
+
 	res, err := c.TeleportSDK.Broadcast(txf, packetMsgs...)
 	if err != nil {
-		return strings.Join(packetDetail,","), fmt.Errorf("broadcast tx error:%+v", err)
+		return strings.Join(packetDetail, ","), fmt.Errorf("broadcast tx error:%+v", err)
 	}
 	if res.TxResponse.Code != 0 {
-		return strings.Join(packetDetail,","), fmt.Errorf(res.TxResponse.RawLog)
+		return strings.Join(packetDetail, ","), fmt.Errorf(res.TxResponse.RawLog)
 	}
-	return fmt.Sprintf("Relay tx Hash:%v\nPacketDetail:%v\n", res.TxResponse.TxHash,strings.Join(packetDetail,",")), nil
+	return fmt.Sprintf("Relay tx Hash:%v\nPacketDetail:%v\n", res.TxResponse.TxHash, strings.Join(packetDetail, ",")), nil
 }
 
 func (c *Tendermint) GetBlockTimestamp(height uint64) (uint64, error) {
@@ -453,7 +461,13 @@ func (c *Tendermint) UpdateClient(header exported.Header, chainName string) erro
 	if err != nil {
 		return err
 	}
-	txf = txf.WithFees(c.fees)
+	_, esGas, err := c.TeleportSDK.CalculateGas(txf, &msg)
+	if err != nil {
+		return fmt.Errorf("CalculateGas failed:%+v", err)
+	}
+	gas := float32(esGas) * 1.2
+	txf = txf.WithGas(uint64(gas))
+	txf = txf.WithGasPrices(c.gasPrice)
 	res, err := c.TeleportSDK.Broadcast(txf, &msg)
 	if err != nil {
 		return err
@@ -482,7 +496,13 @@ func (c *Tendermint) BatchUpdateClient(headers []exported.Header, chainName stri
 	if err != nil {
 		return err
 	}
-	txf = txf.WithFees(c.fees)
+	_, esGas, err := c.TeleportSDK.CalculateGas(txf, msgs...)
+	if err != nil {
+		return fmt.Errorf("CalculateGas failed:%+v", err)
+	}
+	gas := float32(esGas) * 1.2
+	txf = txf.WithGas(uint64(gas))
+	txf = txf.WithGasPrices(c.gasPrice)
 	res, err := c.TeleportSDK.Broadcast(txf, msgs...)
 	if err != nil {
 		return err

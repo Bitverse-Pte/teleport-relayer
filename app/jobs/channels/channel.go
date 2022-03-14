@@ -70,9 +70,9 @@ func NewChannel(
 	if stateData.LatestHeight != 0 {
 		startHeight = stateData.LatestHeight
 	}
-	if chainACfg.Cache.RevisedHeight != 0{
-		if err := state.Write(chainACfg.Cache.RevisedHeight);err != nil {
-			panic(fmt.Errorf("state.Write revisedHeight error:%+v",err))
+	if chainACfg.Cache.RevisedHeight != 0 {
+		if err := state.Write(chainACfg.Cache.RevisedHeight); err != nil {
+			panic(fmt.Errorf("state.Write revisedHeight error:%+v", err))
 		}
 		startHeight = chainACfg.Cache.RevisedHeight
 	}
@@ -94,7 +94,7 @@ func NewChannel(
 
 func (c *Channel) UpdateHeight() {
 	if err := c.state.Write(c.relayHeight); err != nil {
-		panic(fmt.Errorf("state.Write error:%+v",err))
+		panic(fmt.Errorf("state.Write error:%+v", err))
 	}
 }
 
@@ -150,7 +150,7 @@ func (c *Channel) EvmClientUpdate(s *gocron.Scheduler) {
 			}
 		})
 		if err != nil {
-			panic(fmt.Errorf("new EvmClientUpdate jobs error:%+v",err))
+			panic(fmt.Errorf("new EvmClientUpdate jobs error:%+v", err))
 		}
 		jobs.SingletonMode()
 	}
@@ -173,21 +173,21 @@ func (c *Channel) evmClientUpdate() error {
 	delayHeight := clientState.GetDelayBlock()
 	c.logger.Println("chainAHeight", chainAHeight)
 	c.logger.Println("update client updateHeight:", updateHeight)
-	if chainAHeight > updateHeight+delayHeight + 50 {
-		headers, err := c.batchGetBlockHeader(updateHeight, revisionHeight, revisionNumber,50)
+	if chainAHeight > updateHeight+delayHeight+50 {
+		headers, err := c.batchGetBlockHeader(updateHeight, revisionHeight, revisionNumber, 50)
 		if err != nil {
 			return fmt.Errorf("batchGetBlockHeader error:%+v", err)
 		}
 		return c.chainB.BatchUpdateClient(headers, c.chainA.ChainName())
 	}
 	if chainAHeight > updateHeight+delayHeight+c.batchSize {
-		headers, err := c.batchGetBlockHeader(updateHeight, revisionHeight, revisionNumber,c.batchSize)
+		headers, err := c.batchGetBlockHeader(updateHeight, revisionHeight, revisionNumber, c.batchSize)
 		if err != nil {
 			return fmt.Errorf("batchGetBlockHeader error:%+v", err)
 		}
 		return c.chainB.BatchUpdateClient(headers, c.chainA.ChainName())
 	} else if (chainAHeight < updateHeight+delayHeight+c.batchSize) && (chainAHeight > updateHeight+delayHeight) {
-		headers, err := c.batchGetBlockHeader(updateHeight, revisionHeight, revisionNumber,chainAHeight - updateHeight - delayHeight)
+		headers, err := c.batchGetBlockHeader(updateHeight, revisionHeight, revisionNumber, chainAHeight-updateHeight-delayHeight)
 		if err != nil {
 			return fmt.Errorf("batchGetBlockHeader error:%+v", err)
 		}

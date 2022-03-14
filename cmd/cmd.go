@@ -1,9 +1,10 @@
 package cmd
 
 import (
-	"github.com/teleport-network/teleport-relayer/version"
 	"os"
 	"strconv"
+
+	"github.com/teleport-network/teleport-relayer/version"
 
 	"github.com/teleport-network/teleport-relayer/cmd/generate"
 

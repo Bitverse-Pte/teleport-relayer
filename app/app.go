@@ -2,10 +2,12 @@ package app
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/teleport-network/teleport-relayer/version"
 	"path/filepath"
 	"time"
+
+	"github.com/gin-gonic/gin"
+
+	"github.com/teleport-network/teleport-relayer/version"
 
 	"github.com/go-co-op/gocron"
 	"github.com/sirupsen/logrus"
@@ -29,8 +31,8 @@ func NewApp() *App {
 		time.Duration(24*cfg.Log.LogmaxAge)*time.Hour,
 		time.Duration(cfg.Log.LogrotationTime)*time.Hour,
 	)
-	logger.Infof("appName:%s",version.Name)
-	logger.Infof("appCommit:%s",version.Commit)
+	logger.Infof("appName:%s", version.Name)
+	logger.Infof("appCommit:%s", version.Commit)
 	channelMap := channels.NewChannelMap(cfg, logger)
 	return &App{
 		channelMap: channelMap,
@@ -57,11 +59,11 @@ func (a *App) Start() {
 	})
 	s.StartAsync()
 	port := config.Port
-	if port == ""{
+	if port == "" {
 		port = "8080"
 	}
-	if err := r.Run(fmt.Sprintf(":%v",port)); err != nil {
-		panic(fmt.Errorf("route run error:%+v",err))
+	if err := r.Run(fmt.Sprintf(":%v", port)); err != nil {
+		panic(fmt.Errorf("route run error:%+v", err))
 	}
 }
 

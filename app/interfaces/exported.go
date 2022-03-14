@@ -10,7 +10,7 @@ import (
 type IChain interface {
 	GetPackets(fromBlock, toBlock uint64, destChainType string) (*types.Packets, error) // TODO update eth interface
 	GetProof(sourChainName, destChainName string, sequence uint64, height uint64, typ string) ([]byte, error)
-	RelayPackets(msgs []sdk.Msg) (string,error)
+	RelayPackets(msgs []sdk.Msg) (string, error)
 	GetCommitmentsPacket(sourChainName, destChainName string, sequence uint64) error
 	GetReceiptPacket(sourChainName, destChainName string, sequence uint64) (bool, error)
 	GetBlockHeader(*types.GetBlockHeaderReq) (exported.Header, error)

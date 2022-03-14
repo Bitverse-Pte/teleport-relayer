@@ -2,6 +2,7 @@ package channels
 
 import (
 	"fmt"
+
 	"github.com/sirupsen/logrus"
 
 	"github.com/teleport-network/teleport-relayer/app/chains/bsc"
@@ -45,14 +46,14 @@ func MakeChannels(cfg *config.Config, sourceChain, destChain interfaces.IChain, 
 	if cfg.Chain.Source.Enable {
 		srcChannel, err := NewChannel(sourceChain, destChain, cfg.Chain.Source, logger)
 		if err != nil {
-			panic(fmt.Errorf("srcchannel create error:%+v",err))
+			panic(fmt.Errorf("srcchannel create error:%+v", err))
 		}
 		channelMap[sourceChain.ChainName()] = srcChannel
 	}
 	if cfg.Chain.Dest.Enable {
 		destChannel, err := NewChannel(destChain, sourceChain, cfg.Chain.Dest, logger)
 		if err != nil {
-			panic(fmt.Errorf("destChannel create error:%+v",err))
+			panic(fmt.Errorf("destChannel create error:%+v", err))
 		}
 		channelMap[destChain.ChainName()] = destChannel
 	}

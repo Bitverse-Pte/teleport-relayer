@@ -4,14 +4,22 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/teleport-network/teleport-relayer/app/chains/eth/contracts/transfer"
+	"github.com/stretchr/testify/require"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 
+	transfertypes "github.com/teleport-network/teleport/x/xibc/apps/transfer/types"
+
+	"github.com/teleport-network/teleport-relayer/app/chains/eth/contracts/transfer"
 	"github.com/teleport-network/teleport-relayer/app/types"
+)
+
+const (
+	rinkeby   = "https://rinkeby.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
+	rinkebyID = 4
 )
 
 func TestNewEth(t *testing.T) {
@@ -124,4 +132,57 @@ func Test_Hex(t *testing.T) {
 
 func TestMakeBytes(t *testing.T) {
 	// TODO
+}
+
+func TestGetPacket(t *testing.T) {
+	client := getEth(t)
+	packets, err := client.GetPackets(10310394, 10310394, "")
+	require.NoError(t, err)
+	require.NotNil(t, packets.BizPackets)
+	var data transfertypes.FungibleTokenPacketData
+	err = data.DecodeBytes(packets.BizPackets[0].DataList[0])
+	require.NoError(t, err)
+	fmt.Println(data.String())
+}
+
+func getEth(t *testing.T) *Eth {
+	optPrivKey := "d10f695d6cbe3d12808a23ba10b5d1fc407dbe0caabb18935e02aedcec8b358b"
+
+	contractCfgGroup := NewContractCfgGroup()
+	contractCfgGroup.Packet.Addr = "0xfb75fdc26b66127b491147628a3bd66afb556789"
+	contractCfgGroup.Packet.Topic = "PacketSent((uint64,string,string,string,string[],bytes[]))"
+	contractCfgGroup.Packet.OptPrivKey = optPrivKey
+
+	contractCfgGroup.AckPacket.Addr = "0xfb75fdc26b66127b491147628a3bd66afb556789"
+	contractCfgGroup.AckPacket.Topic = "AckWritten((uint64,string,string,string,string[],bytes[]),bytes)"
+	contractCfgGroup.AckPacket.OptPrivKey = optPrivKey
+
+	contractCfgGroup.Client.Addr = "0xf4836391aa84b680a8922f99211118bde1626911"
+	contractCfgGroup.Client.Topic = ""
+	contractCfgGroup.Client.OptPrivKey = optPrivKey
+
+	contractCfgGroup.Transfer.Addr = "0x41baacc9cf251b1046d72610bbc96af69e03ed0d"
+	contractCfgGroup.Transfer.Topic = "Transfer((string,uint256,string,string))"
+	contractCfgGroup.Transfer.OptPrivKey = optPrivKey
+	contractBindOptsCfg := NewContractBindOptsCfg()
+	contractBindOptsCfg.ChainID = rinkebyID
+	contractBindOptsCfg.ClientPrivKey = optPrivKey
+	contractBindOptsCfg.PacketPrivKey = optPrivKey
+	contractBindOptsCfg.GasLimit = 2000000
+
+	chainCfg := NewChainConfig()
+	chainCfg.ContractCfgGroup = contractCfgGroup
+	chainCfg.ContractBindOptsCfg = contractBindOptsCfg
+	chainCfg.ChainType = types.ETH
+	chainCfg.ChainName = "ETH"
+	chainCfg.ChainURI = rinkeby
+	chainCfg.ChainID = rinkebyID
+	chainCfg.Slot = 4
+	chainCfg.UpdateClientFrequency = 10
+
+	bscClient, err := newEth(chainCfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return bscClient
 }

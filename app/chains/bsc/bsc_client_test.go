@@ -13,8 +13,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/teleport-network/teleport-relayer/app/types"
+	transfertypes "github.com/teleport-network/teleport/x/xibc/apps/transfer/types"
 	"github.com/teleport-network/teleport/x/xibc/core/host"
+
+	"github.com/teleport-network/teleport-relayer/app/types"
 )
 
 const (
@@ -35,9 +37,13 @@ func TestNewBsc(t *testing.T) {
 func TestGetPackets(t *testing.T) {
 	bscClient := newBscClient(t)
 
-	packets, err := bscClient.GetPackets(15965605, 15965605, "")
+	packets, err := bscClient.GetPackets(17547678, 17547678, "")
 	require.NoError(t, err)
 	require.NotNil(t, packets.BizPackets)
+	var data transfertypes.FungibleTokenPacketData
+	err = data.DecodeBytes(packets.BizPackets[0].DataList[0])
+	require.NoError(t, err)
+	require.NotNil(t, data)
 }
 
 func TestGetProofIndex(t *testing.T) {

@@ -10,12 +10,14 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
-	"github.com/teleport-network/teleport-relayer/app/types"
-	"github.com/teleport-network/teleport-relayer/app/types/errors"
+
 	xibceth "github.com/teleport-network/teleport/x/xibc/clients/light-clients/eth/types"
 	xibctendermint "github.com/teleport-network/teleport/x/xibc/clients/light-clients/tendermint/types"
 	clienttypes "github.com/teleport-network/teleport/x/xibc/core/client/types"
 	packettypes "github.com/teleport-network/teleport/x/xibc/core/packet/types"
+
+	"github.com/teleport-network/teleport-relayer/app/types"
+	"github.com/teleport-network/teleport-relayer/app/types/errors"
 )
 
 func (c *Channel) GetMsg(fromBlock, toBlock uint64) ([]sdk.Msg, error) {
@@ -56,7 +58,7 @@ func (c *Channel) GetMsg(fromBlock, toBlock uint64) ([]sdk.Msg, error) {
 			return nil, err
 		}
 		if isNotReceipt {
-			c.logger.Printf("packet has been recived,sourchain:%v,destchain:%v,sequence:%v", pack.SourceChain, pack.DestinationChain, pack.Sequence)
+			c.logger.Printf("packet has been received,sourchain:%v,destchain:%v,sequence:%v", pack.SourceChain, pack.DestinationChain, pack.Sequence)
 			continue
 		}
 		proof, err := c.chainA.GetProof(pack.SourceChain, pack.DestinationChain, pack.Sequence, proofHeight, types.CommitmentPoof)
@@ -90,7 +92,7 @@ func (c *Channel) GetMsg(fromBlock, toBlock uint64) ([]sdk.Msg, error) {
 			return nil, err
 		}
 		if isNotReceipt {
-			c.logger.Printf("packet has been recived,sourchain:%v,destchain:%v,sequence:%v", pack.Packet.SourceChain, pack.Packet.DestinationChain, pack.Packet.Sequence)
+			c.logger.Printf("packet has been received,sourchain:%v,destchain:%v,sequence:%v", pack.Packet.SourceChain, pack.Packet.DestinationChain, pack.Packet.Sequence)
 			continue
 		}
 		// query proof

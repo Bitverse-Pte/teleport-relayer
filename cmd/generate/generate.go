@@ -61,7 +61,7 @@ func GenClientFiles() {
 		sdkCli, err := client.NewClient(GrpcAddr, ChainID)
 		if err != nil {
 
-			panic(fmt.Errorf("TENDERMINT client.NewClient error:%+v",err))
+			panic(fmt.Errorf("TENDERMINT client.NewClient error:%+v", err))
 		}
 		cli := &tendermint.Tendermint{
 			Codec:       tendermint.MakeCodec(),
@@ -290,12 +290,12 @@ func WriteCreateClientFiles(fileName string, content string) {
 	path := filepath.Join(home, fileName)
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
-		panic(fmt.Errorf("WriteCreateClientFiles os.OpenFile error:%+v",err))
+		panic(fmt.Errorf("WriteCreateClientFiles os.OpenFile error:%+v", err))
 	}
 	defer file.Close()
 	writer := bufio.NewWriter(file)
 	if _, err := writer.WriteString(content); err != nil {
-		panic(fmt.Errorf("WriteCreateClientFiles WriteString error:%+v",err))
+		panic(fmt.Errorf("WriteCreateClientFiles WriteString error:%+v", err))
 	}
 	writer.Flush()
 }

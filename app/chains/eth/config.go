@@ -13,8 +13,8 @@ type ChainConfig struct {
 	QueryFilter           string
 	Slot                  int64
 	TipCoefficient        float64
-	ContractCfgGroup    *ContractCfgGroup
-	ContractBindOptsCfg *ContractBindOptsCfg
+	ContractCfgGroup      *ContractCfgGroup
+	ContractBindOptsCfg   *ContractBindOptsCfg
 }
 
 func NewContractCfgGroup() *ContractCfgGroup {

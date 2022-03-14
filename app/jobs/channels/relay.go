@@ -2,9 +2,10 @@ package channels
 
 import (
 	"fmt"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"sync"
 	"time"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/go-co-op/gocron"
 
@@ -83,7 +84,7 @@ func (c *Channel) UpdateClientByHeight(height uint64) error {
 	return c.chainB.UpdateClient(header, c.chainA.ChainName())
 }
 
-func (c *Channel) batchGetBlockHeader(reqHeight, revisionHeight, revisionNumber,batchSize uint64) ([]exported.Header, error) {
+func (c *Channel) batchGetBlockHeader(reqHeight, revisionHeight, revisionNumber, batchSize uint64) ([]exported.Header, error) {
 	times := batchSize
 	headers := make([]exported.Header, times)
 	var l sync.Mutex
@@ -128,7 +129,7 @@ func (c *Channel) RelayTask(s *gocron.Scheduler) {
 		}
 	})
 	if err != nil {
-		c.logger.Fatal(fmt.Errorf("new relay Jobs error:%+v",err))
+		c.logger.Fatal(fmt.Errorf("new relay Jobs error:%+v", err))
 	}
 	relayJobs.SingletonMode()
 	if c.chainA.ChainType() == types.ETH || c.chainA.ChainType() == types.BSC {
@@ -140,7 +141,7 @@ func (c *Channel) RelayTask(s *gocron.Scheduler) {
 			}
 		})
 		if err != nil {
-			c.logger.Fatal(fmt.Errorf("new evmClientUpdate Jobs error:%+v",err))
+			c.logger.Fatal(fmt.Errorf("new evmClientUpdate Jobs error:%+v", err))
 		}
 		updateJobs.SingletonMode()
 		checkJob, err := s.Every(10).Minute().Do(func() {
@@ -149,7 +150,7 @@ func (c *Channel) RelayTask(s *gocron.Scheduler) {
 			}
 		})
 		if err != nil {
-			c.logger.Fatal("new checkJob error:",err)
+			c.logger.Fatal("new checkJob error:", err)
 		}
 		checkJob.SingletonMode()
 	}

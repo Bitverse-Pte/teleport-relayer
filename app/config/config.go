@@ -118,17 +118,11 @@ type (
 		ChainID               string   `toml:"chain_id"`
 		RPCAddr               string   `toml:"rpc_addr"`
 		GrpcAddr              string   `toml:"grpc_addr"`
-		Gas                   uint64   `toml:"gas"`
+		GasPrice              string   `toml:"gas_Price"`
 		Key                   ChainKey `toml:"key"`
-		Fee                   Fee      `toml:"fee"`
 		RequestTimeout        uint     `toml:"request_timeout"` //TODO no use
 		UpdateClientFrequency uint64   `toml:"update_client_frequency"`
 		QueryFilter           string   `toml:"query_filter"`
-	}
-
-	Fee struct {
-		Denom  string `toml:"denom"`
-		Amount int64  `toml:"amount"`
 	}
 
 	ChainKey struct {
