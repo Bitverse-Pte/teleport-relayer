@@ -1081,8 +1081,8 @@ github.com/syndtr/goleveldb v1.0.1-0.20200815110645-5c35d600f0ca/go.mod h1:u2MKk
 github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 h1:epCh84lMvA70Z7CTTCmYQn2CKbY8j86K7/FAIr141uY=
 github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7/go.mod h1:q4W45IWZaF22tdD+VEXcAWRA037jwmWEB5VWYORlTpc=
 github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c/go.mod h1:ahpPrc7HpcfEWDQRZEmnXMzHY03mLDYMCxeDzy46i+8=
-github.com/teleport-network/teleport v0.1.0-alpha1.0.20220311064402-9c52550f0a4e h1:4xgdEUigxKXcbxGIj0aQ7C8ZBNwtahRKvvKHUYLqAfs=
-github.com/teleport-network/teleport v0.1.0-alpha1.0.20220311064402-9c52550f0a4e/go.mod h1:UFoGJbY9fupQA3nEGRkFuS6RR2xJOGwsoLPK9S8/S20=
+github.com/teleport-network/teleport v0.1.0-alpha1.0.20220322141359-4c4b28025756 h1:4A+GE/6WOG0BbJ8JR5r4X8FjZfp0pHMwem5CMa7USms=
+github.com/teleport-network/teleport v0.1.0-alpha1.0.20220322141359-4c4b28025756/go.mod h1:UFoGJbY9fupQA3nEGRkFuS6RR2xJOGwsoLPK9S8/S20=
 github.com/teleport-network/teleport-sdk-go v0.0.0-alpha1.0.20220222151836-5d9e74aaab6c h1:qQsAG5+NHUVMikDVa4UrLHGCKy79eZHxu3hephsPtS0=
 github.com/teleport-network/teleport-sdk-go v0.0.0-alpha1.0.20220222151836-5d9e74aaab6c/go.mod h1:vzes2nPEhLiyhweXjpQsqEbZoli4d88p2QkFFd0nnCY=
 github.com/tendermint/btcd v0.1.1 h1:0VcxPfflS2zZ3RiOAHkBiFUcPvbtRj5O7zHmcJWHV7s=
