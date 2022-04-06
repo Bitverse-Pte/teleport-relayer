@@ -37,7 +37,7 @@ func TestNewBsc(t *testing.T) {
 func TestGetPackets(t *testing.T) {
 	bscClient := newBscClient(t)
 
-	packets, err := bscClient.GetPackets(17547678, 17547678, "")
+	packets, err := bscClient.GetPackets(18088221, 18088221, "")
 	require.NoError(t, err)
 	require.NotNil(t, packets.BizPackets)
 	var data transfertypes.FungibleTokenPacketData
@@ -69,19 +69,19 @@ func newBscClient(t *testing.T) *Bsc {
 	optPrivKey := "FB0536CF27B7F16EAB7F8BBD1771980E83ECE69F50BE30A7161D7E643645958D"
 
 	contractCfgGroup := NewContractCfgGroup()
-	contractCfgGroup.Packet.Addr = "0xA6a9AAB1c5E65e1a69cCCF59155ABaA0A555D955"
+	contractCfgGroup.Packet.Addr = "0xf8d6c8920ce142cd303ee877a9bff82281af3889"
 	contractCfgGroup.Packet.Topic = "PacketSent((uint64,string,string,string,string[],bytes[]))"
 	contractCfgGroup.Packet.OptPrivKey = optPrivKey
 
-	contractCfgGroup.AckPacket.Addr = "0xA6a9AAB1c5E65e1a69cCCF59155ABaA0A555D955"
+	contractCfgGroup.AckPacket.Addr = "0xf8d6c8920ce142cd303ee877a9bff82281af3889"
 	contractCfgGroup.AckPacket.Topic = "AckWritten((uint64,string,string,string,string[],bytes[]),bytes)"
 	contractCfgGroup.AckPacket.OptPrivKey = optPrivKey
 
-	contractCfgGroup.Client.Addr = "0x1012978EDB55F4eD2faEf5CE09cd64965AC38d17"
+	contractCfgGroup.Client.Addr = "0x3cb33d0efb93b068e8efc74351aa5271b9444d82"
 	contractCfgGroup.Client.Topic = ""
 	contractCfgGroup.Client.OptPrivKey = optPrivKey
 
-	contractCfgGroup.Transfer.Addr = "0x1b49147aB0099B8dc03d4a22B15EeAa9403Fa3ED"
+	contractCfgGroup.Transfer.Addr = "0xb102f10a15a51a4d9f9f3b8f2a2a05303d926f1f"
 	contractCfgGroup.Transfer.Topic = "Transfer((string,uint256,string,string))"
 	contractCfgGroup.Transfer.OptPrivKey = optPrivKey
 	contractBindOptsCfg := NewContractBindOptsCfg()

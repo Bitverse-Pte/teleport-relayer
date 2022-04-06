@@ -157,6 +157,8 @@ func (c *Channel) RelayTask(s *gocron.Scheduler) {
 }
 
 func (c *Channel) RelayPackets(height uint64) error {
+	now := time.Now()
+	c.logger.Infoln("startRelay ...", now)
 	delayHeight, err := c.chainB.GetLightClientDelayHeight(c.chainA.ChainName())
 	if err != nil {
 		return fmt.Errorf("get lightClient delay height fail:%+v", err)
@@ -224,6 +226,8 @@ func (c *Channel) RelayPackets(height uint64) error {
 		c.logger.Infof("RelayPackets result: %v\n", res)
 	}
 	c.logger.Infof(" recv height : %v", chainBHeight)
+	c.logger.Infoln("endRelay ...", time.Now())
+	c.logger.Infoln("relay total time", time.Now().Sub(now))
 	c.relayHeight = updateHeight
 	return nil
 }

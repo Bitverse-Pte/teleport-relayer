@@ -37,9 +37,16 @@ func (c *Channel) GetMsg(fromBlock, toBlock uint64) ([]sdk.Msg, error) {
 	var relayPackets []sdk.Msg
 	if len(packets.BizPackets) != 0 {
 		c.logger.Printf("has queried packet number:%v", len(packets.BizPackets))
+		for _, p := range packets.BizPackets {
+			c.logger.Printf("packet detail:%v,%v,%v\n", p.SourceChain, p.DestinationChain, p.Sequence)
+		}
+
 	}
 	if len(packets.AckPackets) != 0 {
 		c.logger.Printf("has queried ack number:%v", len(packets.AckPackets))
+		for _, p := range packets.AckPackets {
+			c.logger.Printf("packet detail:%v,%v,%v\n", p.Packet.SourceChain, p.Packet.DestinationChain, p.Packet.Sequence)
+		}
 	}
 
 	for _, pack := range packets.BizPackets {

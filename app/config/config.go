@@ -118,6 +118,7 @@ type (
 		ChainID               string   `toml:"chain_id"`
 		RPCAddr               string   `toml:"rpc_addr"`
 		GrpcAddr              string   `toml:"grpc_addr"`
+		GrpcAddr1             string   `toml:"grpc_addr1"`
 		GasPrice              string   `toml:"gas_Price"`
 		Key                   ChainKey `toml:"key"`
 		RequestTimeout        uint     `toml:"request_timeout"` //TODO no use

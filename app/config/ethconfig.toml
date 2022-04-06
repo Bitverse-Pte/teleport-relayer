@@ -103,6 +103,7 @@
       Clean_packet_enabled = true
       Gas = 0
       grpc_addr = "127.0.0.1:9090"
+      grpc_addr1 = "127.0.0.1:9090"
       request_timeout = 100
       update_client_frequency = 1
       query_filter = "ack"
