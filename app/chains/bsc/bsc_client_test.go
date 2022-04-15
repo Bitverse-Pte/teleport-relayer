@@ -37,7 +37,7 @@ func TestNewBsc(t *testing.T) {
 func TestGetPackets(t *testing.T) {
 	bscClient := newBscClient(t)
 
-	packets, err := bscClient.GetPackets(18088221, 18088221, "")
+	packets, err := bscClient.GetPackets(18444946, 18444946, "")
 	require.NoError(t, err)
 	require.NotNil(t, packets.BizPackets)
 	var data transfertypes.FungibleTokenPacketData
@@ -52,12 +52,12 @@ func TestGetProofIndex(t *testing.T) {
 
 	require.NoError(t, err)
 
-	for i := int64(155) - 55; i <= 155+100; i++ {
+	for i := int64(205) - 100; i <= 205+100; i++ {
 		hash := crypto.Keccak256Hash(
-			host.PacketCommitmentKey("bsc-testnet", "teleport", 1),
+			host.PacketCommitmentKey("bsctest", "teleport", 1),
 			common.LeftPadBytes(big.NewInt(i).Bytes(), 32),
 		)
-		proof, err := bscClient.getProof(context.Background(), common.HexToAddress("0x73f9b1905473e33a30c4b339d3ce87d95a3bfe73"), []string{hexutil.Encode(hash.Bytes())}, big.NewInt(17459374))
+		proof, err := bscClient.getProof(context.Background(), common.HexToAddress("0x2015c336b20960735acb5fdfa4fd5ae63bc740ed"), []string{hexutil.Encode(hash.Bytes())}, big.NewInt(18444946))
 		require.NoError(t, err)
 		if len(proof.StorageProof) > 1 || proof.StorageProof[0].Value.Uint64() > 0 {
 			t.Log(i)
@@ -69,19 +69,19 @@ func newBscClient(t *testing.T) *Bsc {
 	optPrivKey := "FB0536CF27B7F16EAB7F8BBD1771980E83ECE69F50BE30A7161D7E643645958D"
 
 	contractCfgGroup := NewContractCfgGroup()
-	contractCfgGroup.Packet.Addr = "0xf8d6c8920ce142cd303ee877a9bff82281af3889"
+	contractCfgGroup.Packet.Addr = "0x2015c336b20960735acb5fdfa4fd5ae63bc740ed"
 	contractCfgGroup.Packet.Topic = "PacketSent((uint64,string,string,string,string[],bytes[]))"
 	contractCfgGroup.Packet.OptPrivKey = optPrivKey
 
-	contractCfgGroup.AckPacket.Addr = "0xf8d6c8920ce142cd303ee877a9bff82281af3889"
+	contractCfgGroup.AckPacket.Addr = "0x2015c336b20960735acb5fdfa4fd5ae63bc740ed"
 	contractCfgGroup.AckPacket.Topic = "AckWritten((uint64,string,string,string,string[],bytes[]),bytes)"
 	contractCfgGroup.AckPacket.OptPrivKey = optPrivKey
 
-	contractCfgGroup.Client.Addr = "0x3cb33d0efb93b068e8efc74351aa5271b9444d82"
+	contractCfgGroup.Client.Addr = "0x1fb523b65e75dd74c6eebc5e7a2785c283ab8f42"
 	contractCfgGroup.Client.Topic = ""
 	contractCfgGroup.Client.OptPrivKey = optPrivKey
 
-	contractCfgGroup.Transfer.Addr = "0xb102f10a15a51a4d9f9f3b8f2a2a05303d926f1f"
+	contractCfgGroup.Transfer.Addr = "0xa85d7a0f8f7b6eb551f44c099e99050c6b9462a9"
 	contractCfgGroup.Transfer.Topic = "Transfer((string,uint256,string,string))"
 	contractCfgGroup.Transfer.OptPrivKey = optPrivKey
 	contractBindOptsCfg := NewContractBindOptsCfg()
