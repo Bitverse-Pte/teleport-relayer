@@ -15,7 +15,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.4.0
 	github.com/stretchr/testify v1.7.1
-	github.com/teleport-network/teleport v0.1.0-alpha1.0.20220414153408-372848dca024
+	github.com/teleport-network/teleport v0.1.0-alpha1.0.20220415023238-b234c5f63db1
 	github.com/teleport-network/teleport-sdk-go v0.0.0-alpha1.0.20220402141517-4695b6134332
 	github.com/tendermint/tendermint v0.34.16
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4
