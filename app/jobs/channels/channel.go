@@ -6,8 +6,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/go-co-op/gocron"
+
 	log "github.com/sirupsen/logrus"
+
 	"github.com/teleport-network/teleport/x/xibc/exported"
 
 	"github.com/teleport-network/teleport-relayer/app/config"
@@ -28,20 +31,25 @@ type IChannel interface {
 	ViewRelayHeight(ctx *gin.Context)
 	UpgradeExtraWait(ctx *gin.Context)
 	ViewExtraWait(ctx *gin.Context)
+	ManualRelayByHash(ctx *gin.Context)
+	ManualRelay(detail *types.PacketDetail, hash string) error
 }
 
 type Channel struct {
-	chainA         interfaces.IChain
-	chainB         interfaces.IChain
-	relayHeight    uint64
-	clientHeight   uint64
-	checkHeight    uint64
-	chainName      string
-	relayFrequency uint64
-	extraWait      uint64 // waitTime = (extraWait * relayFrequency) second
-	state          *cache.CacheFileWriter
-	logger         *log.Logger
-	batchSize      uint64
+	chainA          interfaces.IChain
+	chainB          interfaces.IChain
+	relayHeight     uint64
+	clientHeight    uint64
+	checkHeight     uint64
+	chainName       string
+	relayFrequency  uint64
+	extraWait       uint64 // waitTime = (extraWait * relayFrequency) second
+	state           *cache.CacheFileWriter
+	errRelay        *cache.CacheFileWriter
+	logger          *log.Logger
+	batchSize       uint64
+	bridgeStatusApi string
+	bridgeEnable    bool
 }
 
 // TODO: pullHeight   relayHeight   chainAHeight   clientAHeight
@@ -51,12 +59,14 @@ func NewChannel(
 	chainB interfaces.IChain,
 	chainACfg config.ChainCfg,
 	logger *log.Logger,
+	cfg *config.Config,
 ) (
 	IChannel,
 	error,
 ) {
 	var startHeight uint64
 	state := cache.NewCacheFileWriter(config.Home, config.DefaultCacheDirName, chainACfg.Cache.Filename)
+	errRelayCache := cache.NewCacheFileWriter(config.Home, config.DefaultCacheDirName, "errRelay")
 	stateData := state.LoadCache()
 	if chainA.ChainType() == types.Tendermint {
 		startHeight = chainACfg.Cache.StartHeight
@@ -81,20 +91,29 @@ func NewChannel(
 		batchSize = chainACfg.BatchSize
 	}
 	return &Channel{
-		chainA:         chainA,
-		chainB:         chainB,
-		relayHeight:    startHeight,
-		chainName:      chainA.ChainName(),
-		relayFrequency: chainACfg.RelayFrequency,
-		state:          state,
-		logger:         logger,
-		batchSize:      batchSize,
+		chainA:          chainA,
+		chainB:          chainB,
+		relayHeight:     startHeight,
+		chainName:       chainA.ChainName(),
+		relayFrequency:  chainACfg.RelayFrequency,
+		state:           state,
+		logger:          logger,
+		batchSize:       batchSize,
+		bridgeStatusApi: cfg.App.BridgeStatusApi,
+		bridgeEnable:    cfg.App.BridgeEnable,
+		errRelay:        errRelayCache,
 	}, nil
 }
 
 func (c *Channel) UpdateHeight() {
 	if err := c.state.Write(c.relayHeight); err != nil {
 		panic(fmt.Errorf("state.Write error:%+v", err))
+	}
+}
+
+func (c *Channel) WriteErrRelay() {
+	if err := c.state.Write(c.relayHeight); err != nil {
+		panic(fmt.Errorf("WriteErrRelay.Write error:%+v", err))
 	}
 }
 
@@ -137,6 +156,25 @@ func (c *Channel) UpgradeExtraWait(ctx *gin.Context) {
 	}
 	c.extraWait = extraWaitObj.ExtraWait
 	ctx.JSON(http.StatusOK, dto.Response{Code: dto.Success, Message: "success", Data: c.extraWait})
+}
+
+func (c *Channel) ManualRelayByHash(ctx *gin.Context) {
+	var tx dto.ReqRelayByHash
+	if err := ctx.Bind(&tx); err != nil {
+		ctx.JSON(http.StatusOK, dto.Response{Code: dto.BadRequest, Message: fmt.Sprintf("invalid type:%v", err.Error())})
+		return
+	}
+	pkt, err := c.GetMsgByHash(tx.Hash)
+	if err != nil {
+		ctx.JSON(http.StatusOK, dto.Response{Code: dto.BadRequest, Message: fmt.Sprintf("get msg error :%v", err.Error())})
+		return
+	}
+	res, err := c.manualRelayAll(pkt)
+	if err != nil {
+		ctx.JSON(http.StatusOK, dto.Response{Code: dto.BadRequest, Message: fmt.Sprintf("manual relay error :%v", err.Error())})
+		return
+	}
+	ctx.JSON(http.StatusOK, dto.Response{Code: dto.Success, Message: "success", Data: fmt.Sprintf("recv hash :%v", res)})
 }
 
 func (c *Channel) EvmClientUpdate(s *gocron.Scheduler) {

@@ -18,7 +18,7 @@ const TendermintAndBsc = "tendermint_and_bsc"
 
 func NewChannelMap(cfg *config.Config, logger *logrus.Logger) map[string]IChannel {
 	if len(cfg.App.ChannelTypes) != 1 {
-		logger.Fatal("channel_types should be equal 1")
+		logger.Fatalf("channel_types invalid , need 1 got %d ", len(cfg.App.ChannelTypes))
 	}
 	for _, channelType := range cfg.App.ChannelTypes {
 		switch channelType {
@@ -44,14 +44,14 @@ func NewChannelMap(cfg *config.Config, logger *logrus.Logger) map[string]IChanne
 func MakeChannels(cfg *config.Config, sourceChain, destChain interfaces.IChain, logger *logrus.Logger) map[string]IChannel {
 	channelMap := make(map[string]IChannel)
 	if cfg.Chain.Source.Enable {
-		srcChannel, err := NewChannel(sourceChain, destChain, cfg.Chain.Source, logger)
+		srcChannel, err := NewChannel(sourceChain, destChain, cfg.Chain.Source, logger, cfg)
 		if err != nil {
 			panic(fmt.Errorf("srcchannel create error:%+v", err))
 		}
 		channelMap[sourceChain.ChainName()] = srcChannel
 	}
 	if cfg.Chain.Dest.Enable {
-		destChannel, err := NewChannel(destChain, sourceChain, cfg.Chain.Dest, logger)
+		destChannel, err := NewChannel(destChain, sourceChain, cfg.Chain.Dest, logger, cfg)
 		if err != nil {
 			panic(fmt.Errorf("destChannel create error:%+v", err))
 		}

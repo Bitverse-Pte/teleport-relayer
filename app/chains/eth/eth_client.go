@@ -7,11 +7,8 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"sync"
 	"time"
-
-	"github.com/teleport-network/teleport-relayer/app/chains/eth/contracts"
-	"github.com/teleport-network/teleport-relayer/app/chains/eth/contracts/transfer"
-	"github.com/teleport-network/teleport-relayer/app/interfaces"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
@@ -33,6 +30,9 @@ import (
 	packettypes "github.com/teleport-network/teleport/x/xibc/core/packet/types"
 	"github.com/teleport-network/teleport/x/xibc/exported"
 
+	"github.com/teleport-network/teleport-relayer/app/chains/eth/contracts"
+	"github.com/teleport-network/teleport-relayer/app/chains/eth/contracts/transfer"
+	"github.com/teleport-network/teleport-relayer/app/interfaces"
 	"github.com/teleport-network/teleport-relayer/app/types"
 	"github.com/teleport-network/teleport-relayer/app/types/errors"
 )
@@ -66,6 +66,7 @@ type Eth struct {
 	ethClient             *ethclient.Client
 	gethCli               *gethclient.Client
 	gethRpcCli            *rpc.Client
+	l                     *sync.Mutex
 }
 
 func NewEth(config *ChainConfig) (interfaces.IChain, error) {
@@ -106,6 +107,7 @@ func newEth(config *ChainConfig) (*Eth, error) {
 		slot:                  config.Slot,
 		tipCoefficient:        config.TipCoefficient,
 		maxGasPrice:           new(big.Int).SetUint64(config.ContractBindOptsCfg.MaxGasPrice),
+		l:                     new(sync.Mutex),
 	}, nil
 }
 
@@ -128,78 +130,76 @@ func (eth *Eth) TransferERC20(transferData transfer.TransferDataTypesERC20Transf
 	return eth.reTryEthResult(resultTx.Hash, 0)
 }
 
-func (eth *Eth) RelayPackets(msgs []sdk.Msg) (string, error) {
+func (eth *Eth) RelayPackets(pkt sdk.Msg) (string, error) {
+	eth.l.Lock()
+	defer eth.l.Unlock()
+
 	resultTx := &types.ResultTx{}
-	var packetDetail []string
-	for _, d := range msgs {
-		switch msg := d.(type) {
-		case *packettypes.MsgRecvPacket:
-			packetMsg := fmt.Sprintf("srcChain:%v,dest%v,sequence:%v chainType:packet", msg.Packet.SourceChain, msg.Packet.DestinationChain, msg.Packet.Sequence)
-			packetDetail = append(packetDetail, packetMsg)
-			tmpPack := contracts.PacketTypesPacket{
-				Sequence:    msg.Packet.Sequence,
-				Ports:       msg.Packet.Ports,
-				DestChain:   msg.Packet.DestinationChain,
-				SourceChain: msg.Packet.SourceChain,
-				RelayChain:  msg.Packet.RelayChain,
-				DataList:    msg.Packet.DataList,
-			}
-			height := contracts.HeightData{
-				RevisionNumber: msg.ProofHeight.RevisionNumber,
-				RevisionHeight: msg.ProofHeight.RevisionHeight,
-			}
-			if err := eth.setPacketOpts(); err != nil {
-				return packetMsg, err
-			}
-			result, err := eth.contracts.Packet.RecvPacket(
-				eth.bindOpts.packetTransactOpts,
-				tmpPack,
-				msg.ProofCommitment,
-				height,
-			)
-			if err != nil {
-				return fmt.Sprintf("relayer tx hash:%v\n packet detail:%v", result.Hash().String(), packetMsg), err
-			}
-			resultTx.Hash += "," + result.Hash().String()
-		case *packettypes.MsgAcknowledgement:
-			packetMsg := fmt.Sprintf("srcChain:%v,dest%v,sequence:%v,chainType: Ack", msg.Packet.SourceChain, msg.Packet.DestinationChain, msg.Packet.Sequence)
-			packetDetail = append(packetDetail, packetMsg)
-			tmpPack := contracts.PacketTypesPacket{
-				Sequence:    msg.Packet.Sequence,
-				Ports:       msg.Packet.Ports,
-				DestChain:   msg.Packet.DestinationChain,
-				SourceChain: msg.Packet.SourceChain,
-				RelayChain:  msg.Packet.RelayChain,
-				DataList:    msg.Packet.DataList,
-			}
-			height := contracts.HeightData{
-				RevisionNumber: msg.ProofHeight.RevisionNumber,
-				RevisionHeight: msg.ProofHeight.RevisionHeight,
-			}
-
-			if err := eth.setPacketOpts(); err != nil {
-				return packetMsg, err
-			}
-
-			result, err := eth.contracts.Packet.AcknowledgePacket(
-				eth.bindOpts.packetTransactOpts,
-				tmpPack, msg.Acknowledgement, msg.ProofAcked,
-				height,
-			)
-			if err != nil {
-				return packetMsg, err
-			}
-			resultTx.Hash += "," + result.Hash().String()
+	switch msg := pkt.(type) {
+	case *packettypes.MsgRecvPacket:
+		tmpPack := contracts.PacketTypesPacket{
+			Sequence:    msg.Packet.Sequence,
+			Ports:       msg.Packet.Ports,
+			DestChain:   msg.Packet.DestinationChain,
+			SourceChain: msg.Packet.SourceChain,
+			RelayChain:  msg.Packet.RelayChain,
+			DataList:    msg.Packet.DataList,
 		}
+		height := contracts.HeightData{
+			RevisionNumber: msg.ProofHeight.RevisionNumber,
+			RevisionHeight: msg.ProofHeight.RevisionHeight,
+		}
+		if err := eth.setPacketOpts(); err != nil {
+			return "", err
+		}
+		result, err := eth.contracts.Packet.RecvPacket(
+			eth.bindOpts.packetTransactOpts,
+			tmpPack,
+			msg.ProofCommitment,
+			height,
+		)
+		if err != nil {
+			return "", err
+		}
+		resultTx.Hash = result.Hash().String()
+	case *packettypes.MsgAcknowledgement:
+		tmpPack := contracts.PacketTypesPacket{
+			Sequence:    msg.Packet.Sequence,
+			Ports:       msg.Packet.Ports,
+			DestChain:   msg.Packet.DestinationChain,
+			SourceChain: msg.Packet.SourceChain,
+			RelayChain:  msg.Packet.RelayChain,
+			DataList:    msg.Packet.DataList,
+		}
+		height := contracts.HeightData{
+			RevisionNumber: msg.ProofHeight.RevisionNumber,
+			RevisionHeight: msg.ProofHeight.RevisionHeight,
+		}
+
+		if err := eth.setPacketOpts(); err != nil {
+			return "", err
+		}
+
+		result, err := eth.contracts.Packet.AcknowledgePacket(
+			eth.bindOpts.packetTransactOpts,
+			tmpPack, msg.Acknowledgement, msg.ProofAcked,
+			height,
+		)
+		if err != nil {
+			return "", err
+		}
+		resultTx.Hash = result.Hash().String()
 	}
-	resultTx.Hash = strings.Trim(resultTx.Hash, ",")
 	if err := eth.reTryEthResult(resultTx.Hash, 0); err != nil {
-		return fmt.Sprintf("relayer tx hash :%v\n,packet detail:%v", resultTx.Hash, strings.Join(packetDetail, ",")), err
+		return resultTx.Hash, err
 	}
-	return fmt.Sprintf("relayer tx hash :%v\n,packet detail:%v", resultTx.Hash, strings.Join(packetDetail, ",")), nil
+	return resultTx.Hash, nil
 }
 
 func (eth *Eth) UpdateClient(header exported.Header, chainName string) error {
+	eth.l.Lock()
+	defer eth.l.Unlock()
+
 	h, ok := header.(*xibctendermint.Header)
 	if !ok {
 		return fmt.Errorf("invalid header type")
@@ -251,6 +251,37 @@ func (eth *Eth) GetPackets(fromBlock, toBlock uint64, destChainType string) (*ty
 		AckPackets: ackPackets,
 	}
 	return packets, nil
+}
+
+func (eth *Eth) GetPacketsByHash(hash string) (*types.Packets, error) {
+	transaction, err := eth.TransactionByHash(hash)
+	if err != nil {
+		return nil, err
+	}
+	block, err := eth.ethClient.BlockByHash(context.Background(), *transaction.BlockHash)
+	if err != nil {
+		return nil, err
+	}
+	height := block.NumberU64()
+	bizPackets, err := eth.getPackets(height, height)
+	if err != nil {
+		return nil, err
+	}
+	ackPackets, err := eth.getAckPackets(height, height)
+	if err != nil {
+		return nil, err
+	}
+	packets := &types.Packets{
+		BizPackets: bizPackets,
+		AckPackets: ackPackets,
+	}
+	return packets, nil
+}
+
+func (eth *Eth) TransactionByHash(hash string) (*types.RpcTransaction, error) {
+	var transaction *types.RpcTransaction
+	err := eth.gethRpcCli.CallContext(context.Background(), &transaction, "eth_getTransactionByHash", hash)
+	return transaction, err
 }
 
 func (eth *Eth) GetProof(sourChainName, destChainName string, sequence uint64, height uint64, typ string) ([]byte, error) {

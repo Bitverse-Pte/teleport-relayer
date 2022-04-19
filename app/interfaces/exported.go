@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
 	"github.com/teleport-network/teleport/x/xibc/exported"
 
 	"github.com/teleport-network/teleport-relayer/app/types"
@@ -10,7 +11,8 @@ import (
 type IChain interface {
 	GetPackets(fromBlock, toBlock uint64, destChainType string) (*types.Packets, error) // TODO update eth interface
 	GetProof(sourChainName, destChainName string, sequence uint64, height uint64, typ string) ([]byte, error)
-	RelayPackets(msgs []sdk.Msg) (string, error)
+	RelayPackets(msg sdk.Msg) (string, error)
+	GetPacketsByHash(hash string) (*types.Packets, error)
 	GetCommitmentsPacket(sourChainName, destChainName string, sequence uint64) error
 	GetReceiptPacket(sourChainName, destChainName string, sequence uint64) (bool, error)
 	GetBlockHeader(*types.GetBlockHeaderReq) (exported.Header, error)

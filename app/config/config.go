@@ -116,10 +116,10 @@ type (
 	Tendermint struct {
 		ChainName             string   `toml:"chain_name"`
 		ChainID               string   `toml:"chain_id"`
-		RPCAddr               string   `toml:"rpc_addr"`
 		GrpcAddr              string   `toml:"grpc_addr"`
-		GrpcAddr1             string   `toml:"grpc_addr1"`
-		GasPrice              string   `toml:"gas_Price"`
+		SimulationAddr        string   `toml:"simulation_addr"`
+		GasLimit              uint64   `toml:"gas_limit"`
+		GasPrice              string   `toml:"gas_price"`
 		Key                   ChainKey `toml:"key"`
 		RequestTimeout        uint     `toml:"request_timeout"` //TODO no use
 		UpdateClientFrequency uint64   `toml:"update_client_frequency"`
@@ -135,10 +135,12 @@ type (
 	// =====================================================================
 
 	App struct {
-		MetricAddr   string   `toml:"metric_addr"`
-		Env          string   `toml:"env"`
-		LogLevel     string   `toml:"log_level"`
-		ChannelTypes []string `toml:"channel_types"`
+		MetricAddr      string   `toml:"metric_addr"`
+		Env             string   `toml:"env"`
+		LogLevel        string   `toml:"log_level"`
+		ChannelTypes    []string `toml:"channel_types"`
+		BridgeStatusApi string   `toml:"bridge_status_api"`
+		BridgeEnable    bool     `toml:"bridge_enable"`
 	}
 
 	Cache struct {

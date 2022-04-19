@@ -7,13 +7,11 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/teleport-network/teleport-relayer/app/chains/bsc/contracts"
-	"github.com/teleport-network/teleport-relayer/app/chains/bsc/contracts/transfer"
-	"github.com/teleport-network/teleport-relayer/app/interfaces"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
 	xibcbsc "github.com/teleport-network/teleport/x/xibc/clients/light-clients/bsc/types"
 	xibctendermint "github.com/teleport-network/teleport/x/xibc/clients/light-clients/tendermint/types"
 	clienttypes "github.com/teleport-network/teleport/x/xibc/core/client/types"
@@ -21,6 +19,9 @@ import (
 	packettypes "github.com/teleport-network/teleport/x/xibc/core/packet/types"
 	"github.com/teleport-network/teleport/x/xibc/exported"
 
+	"github.com/teleport-network/teleport-relayer/app/chains/bsc/contracts"
+	"github.com/teleport-network/teleport-relayer/app/chains/bsc/contracts/transfer"
+	"github.com/teleport-network/teleport-relayer/app/interfaces"
 	"github.com/teleport-network/teleport-relayer/app/types"
 	"github.com/teleport-network/teleport-relayer/app/types/errors"
 
@@ -40,7 +41,7 @@ var _ interfaces.IChain = new(Bsc)
 const CtxTimeout = 100 * time.Second
 const TryGetGasPriceTimeInterval = 10 * time.Second
 const RetryTimeout = 15 * time.Second
-const RetryTimes = 20
+const RetryTimes = 5
 
 type Bsc struct {
 	// uri                   string
@@ -57,6 +58,7 @@ type Bsc struct {
 	ethClient             *ethclient.Client
 	gethCli               *gethclient.Client
 	gethRpcCli            *rpc.Client
+	l                     *sync.Mutex
 }
 
 func NewBsc(config *ChainConfig) (interfaces.IChain, error) {
@@ -97,6 +99,7 @@ func newBsc(config *ChainConfig) (*Bsc, error) {
 		slot:                  config.Slot,
 		tipCoefficient:        config.TipCoefficient,
 		maxGasPrice:           new(big.Int).SetUint64(config.ContractBindOptsCfg.MaxGasPrice),
+		l:                     new(sync.Mutex),
 	}, nil
 }
 
@@ -121,6 +124,37 @@ func (b *Bsc) GetPackets(fromBlock, toBlock uint64, destChainType string) (*type
 	}
 
 	return packets, nil
+}
+
+func (b *Bsc) GetPacketsByHash(hash string) (*types.Packets, error) {
+	transaction, err := b.TransactionByHash(hash)
+	if err != nil {
+		return nil, err
+	}
+	block, err := b.ethClient.BlockByHash(context.Background(), *transaction.BlockHash)
+	if err != nil {
+		return nil, err
+	}
+	height := block.NumberU64()
+	bizPackets, err := b.getPackets(height, height)
+	if err != nil {
+		return nil, err
+	}
+	ackPackets, err := b.getAckPackets(height, height)
+	if err != nil {
+		return nil, err
+	}
+	packets := &types.Packets{
+		BizPackets: bizPackets,
+		AckPackets: ackPackets,
+	}
+	return packets, nil
+}
+
+func (b *Bsc) TransactionByHash(hash string) (*types.RpcTransaction, error) {
+	var transaction *types.RpcTransaction
+	err := b.gethRpcCli.CallContext(context.Background(), &transaction, "eth_getTransactionByHash", hash)
+	return transaction, err
 }
 
 func (b *Bsc) GetProof(sourChainName, destChainName string, sequence uint64, height uint64, typ string) ([]byte, error) {
@@ -166,77 +200,72 @@ func (b *Bsc) GetProof(sourChainName, destChainName string, sequence uint64, hei
 	return json.Marshal(proof)
 }
 
-func (b *Bsc) RelayPackets(msgs []sdk.Msg) (string, error) {
+func (b *Bsc) RelayPackets(msgs sdk.Msg) (string, error) {
+	b.l.Lock()
+	defer b.l.Unlock()
+
 	resultTx := &types.ResultTx{}
-	var packetDetail []string
-	for _, d := range msgs {
-		switch msg := d.(type) {
-		case *packettypes.MsgRecvPacket:
-			packetMsg := fmt.Sprintf("srcChain:%v,dest%v,sequence:%v chainType:packet", msg.Packet.SourceChain, msg.Packet.DestinationChain, msg.Packet.Sequence)
-			packetDetail = append(packetDetail, packetMsg)
-			tmpPack := contracts.PacketTypesPacket{
-				Sequence:    msg.Packet.Sequence,
-				Ports:       msg.Packet.Ports,
-				DestChain:   msg.Packet.DestinationChain,
-				SourceChain: msg.Packet.SourceChain,
-				RelayChain:  msg.Packet.RelayChain,
-				DataList:    msg.Packet.DataList,
-			}
-			height := contracts.HeightData{
-				RevisionNumber: msg.ProofHeight.RevisionNumber,
-				RevisionHeight: msg.ProofHeight.RevisionHeight,
-			}
-
-			if err := b.setPacketOpts(); err != nil {
-				return packetMsg, err
-			}
-			result, err := b.contracts.Packet.RecvPacket(
-				b.bindOpts.packetTransactOpts,
-				tmpPack,
-				msg.ProofCommitment,
-				height,
-			)
-			if err != nil {
-				return fmt.Sprintf("relay result:%v\n packet detail:%v", result, packetMsg), err
-			}
-			resultTx.Hash += "," + result.Hash().String()
-
-		case *packettypes.MsgAcknowledgement:
-			packetMsg := fmt.Sprintf("srcChain:%v,dest%v,sequence:%v chainType:ack", msg.Packet.SourceChain, msg.Packet.DestinationChain, msg.Packet.Sequence)
-			packetDetail = append(packetDetail, packetMsg)
-			tmpPack := contracts.PacketTypesPacket{
-				Sequence:    msg.Packet.Sequence,
-				Ports:       msg.Packet.Ports,
-				DestChain:   msg.Packet.DestinationChain,
-				SourceChain: msg.Packet.SourceChain,
-				RelayChain:  msg.Packet.RelayChain,
-				DataList:    msg.Packet.DataList,
-			}
-			height := contracts.HeightData{
-				RevisionNumber: msg.ProofHeight.RevisionNumber,
-				RevisionHeight: msg.ProofHeight.RevisionHeight,
-			}
-
-			if err := b.setPacketOpts(); err != nil {
-				return packetMsg, err
-			}
-
-			result, err := b.contracts.Packet.AcknowledgePacket(
-				b.bindOpts.packetTransactOpts,
-				tmpPack, msg.Acknowledgement, msg.ProofAcked,
-				height,
-			)
-			if err != nil {
-				return packetMsg, err
-			}
-			resultTx.Hash += "," + result.Hash().String()
+	switch msg := msgs.(type) {
+	case *packettypes.MsgRecvPacket:
+		tmpPack := contracts.PacketTypesPacket{
+			Sequence:    msg.Packet.Sequence,
+			Ports:       msg.Packet.Ports,
+			DestChain:   msg.Packet.DestinationChain,
+			SourceChain: msg.Packet.SourceChain,
+			RelayChain:  msg.Packet.RelayChain,
+			DataList:    msg.Packet.DataList,
 		}
+		height := contracts.HeightData{
+			RevisionNumber: msg.ProofHeight.RevisionNumber,
+			RevisionHeight: msg.ProofHeight.RevisionHeight,
+		}
+
+		if err := b.setPacketOpts(); err != nil {
+			return "", err
+		}
+		result, err := b.contracts.Packet.RecvPacket(
+			b.bindOpts.packetTransactOpts,
+			tmpPack,
+			msg.ProofCommitment,
+			height,
+		)
+		if err != nil {
+			return "", err
+		}
+		resultTx.Hash = result.Hash().String()
+
+	case *packettypes.MsgAcknowledgement:
+		tmpPack := contracts.PacketTypesPacket{
+			Sequence:    msg.Packet.Sequence,
+			Ports:       msg.Packet.Ports,
+			DestChain:   msg.Packet.DestinationChain,
+			SourceChain: msg.Packet.SourceChain,
+			RelayChain:  msg.Packet.RelayChain,
+			DataList:    msg.Packet.DataList,
+		}
+		height := contracts.HeightData{
+			RevisionNumber: msg.ProofHeight.RevisionNumber,
+			RevisionHeight: msg.ProofHeight.RevisionHeight,
+		}
+
+		if err := b.setPacketOpts(); err != nil {
+			return "", err
+		}
+
+		result, err := b.contracts.Packet.AcknowledgePacket(
+			b.bindOpts.packetTransactOpts,
+			tmpPack, msg.Acknowledgement, msg.ProofAcked,
+			height,
+		)
+		if err != nil {
+			return "", err
+		}
+		resultTx.Hash = result.Hash().String()
 	}
-	resultTx.Hash = strings.Trim(resultTx.Hash, ",")
 	if err := b.reTryEthResult(resultTx.Hash, 0); err != nil {
-		return fmt.Sprintf("relayer tx hash :%v\n,packet detail:%v", resultTx.Hash, strings.Join(packetDetail, ",")), err
+		return resultTx.Hash, err
 	}
-	return fmt.Sprintf("relayer tx hash :%v\n,packet detail:%v", resultTx.Hash, strings.Join(packetDetail, ",")), nil
+	return resultTx.Hash, nil
 }
 
 func (b *Bsc) GetCommitmentsPacket(sourChainName, destChainName string, sequence uint64) error {
@@ -326,6 +355,9 @@ func (b *Bsc) GetLightClientDelayTime(s string) (uint64, error) {
 }
 
 func (b *Bsc) UpdateClient(header exported.Header, chainName string) error {
+	b.l.Lock()
+	defer b.l.Unlock()
+
 	h, ok := header.(*xibctendermint.Header)
 	if !ok {
 		return fmt.Errorf("invalid header type")
@@ -468,7 +500,6 @@ func (b *Bsc) getPackets(fromBlock, toBlock uint64) ([]packettypes.Packet, error
 			RelayChain:       packSent.Packet.RelayChain,
 		}
 		bizPackets = append(bizPackets, tmpPack)
-
 	}
 	return bizPackets, nil
 }

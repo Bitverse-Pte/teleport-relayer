@@ -6,17 +6,20 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/teleport-network/teleport-relayer/app/chains/tendermint"
+	"github.com/sirupsen/logrus"
 
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
+
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/sirupsen/logrus"
+
+	"github.com/tendermint/tendermint/libs/bytes"
+	tmtypes "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	xibctendermint "github.com/teleport-network/teleport/x/xibc/clients/light-clients/tendermint/types"
 	clienttypes "github.com/teleport-network/teleport/x/xibc/core/client/types"
 	commitmenttypes "github.com/teleport-network/teleport/x/xibc/core/commitment/types"
-	"github.com/tendermint/tendermint/libs/bytes"
-	tmtypes "github.com/tendermint/tendermint/proto/tendermint/types"
+
+	"github.com/teleport-network/teleport-relayer/app/chains/tendermint"
 )
 
 type TendermintConsensusState struct {

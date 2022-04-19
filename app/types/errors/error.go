@@ -24,6 +24,7 @@ var (
 	ErrDelayHeight         = Register(RootCodeSpace, 15, "failed to get delay height")
 	ErrCurBlockTime        = Register(RootCodeSpace, 16, "failed to get current block time")
 	ErrUnknownMsg          = Register(RootCodeSpace, 17, "failed to unknown msg type")
+	ErrBridgeConn          = Register(RootCodeSpace, 18, "connection bridge failed")
 )
 
 var usedCodes = map[string]*Error{}

@@ -9,12 +9,11 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/teleport-network/teleport-sdk-go/client"
 
 	"github.com/teleport-network/teleport-relayer/app/chains/tendermint"
-
-	"github.com/sirupsen/logrus"
-
 	"github.com/teleport-network/teleport-relayer/app/config"
 )
 

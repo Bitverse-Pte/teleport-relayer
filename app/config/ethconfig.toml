@@ -1,15 +1,17 @@
 
 [App]
   channel_types = ["tendermint_and_eth"]
-  Env = "dev"
+  env = "dev"
   log_level = "debug"
   metric_addr = "0.0.0.0:8083"
+  bridge_status_api = "https://bridge.qa.davionlabs.com/bridge/bridge_status"
+  bridge_enable = false
 
 [Chain]
 
   [Chain.Dest]
     chain_type = "eth"
-    enabled = true
+    enable = true
 
     [Chain.Dest.Cache]
       filename = "destdata"
@@ -23,96 +25,63 @@
       max_gas_price = 150000000000
       tip_coefficient = 0.2
       uri = "https://ropsten.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
-      Update_client_frequency = 2
+      update_client_frequency = 2
+      query_filter = "ack"
 
       [Chain.Dest.Eth.Contracts]
 
         [Chain.Dest.Eth.Contracts.Ack_packet]
-          Addr = "0x2A212D09038c848A0d79a42E0Ab88B5FD8B1AD85"
-          Opt_priv_key = "6995eddbc393d46b4bad576d1de73f5345782af4d003739176807ac3cbe969f6"
-          Topic = "AckWritten((uint64,string,string,string,string,bytes),bytes)"
+          addr = "0x2A212D09038c848A0d79a42E0Ab88B5FD8B1AD85"
+          opt_priv_key = "6995eddbc393d46b4bad576d1de73f5345782af4d003739176807ac3cbe969f6"
+          topic = "AckWritten((uint64,string,string,string,string,bytes),bytes)"
 
         [Chain.Dest.Eth.Contracts.Client]
-          Addr = "0x53176d71Ac1AD08cF5a7e54aF1EdF5657B2419eC"
-          Opt_priv_key = "6995eddbc393d46b4bad576d1de73f5345782af4d003739176807ac3cbe969f6"
-          Topic = ""
+          addr = "0x53176d71Ac1AD08cF5a7e54aF1EdF5657B2419eC"
+          opt_priv_key = "6995eddbc393d46b4bad576d1de73f5345782af4d003739176807ac3cbe969f6"
+          topic = ""
 
         [Chain.Dest.Eth.Contracts.Packet]
-          Addr = "0x2A212D09038c848A0d79a42E0Ab88B5FD8B1AD85"
-          Opt_priv_key = "6995eddbc393d46b4bad576d1de73f5345782af4d003739176807ac3cbe969f6"
-          Topic = "PacketSent((uint64,string,string,string,string,bytes))"
+          addr = "0x2A212D09038c848A0d79a42E0Ab88B5FD8B1AD85"
+          opt_priv_key = "6995eddbc393d46b4bad576d1de73f5345782af4d003739176807ac3cbe969f6"
+          topic = "PacketSent((uint64,string,string,string,string,bytes))"
 
     [Chain.Dest.Tendermint]
-      Algo = ""
       chain_id = "teleport_8544154630257-1"
       chain_name = "testCreateClientB"
-      clean_packet_enabled = false
-      Gas = 0
+      Clean_packet_enabled = false
+      gas_limit =  "122"
+      gas_price = "121"
       grpc_addr = "127.0.0.1:19090"
+      simulation_addr = "127.0.0.1:19090"
       request_timeout = 0
       update_client_frequency = 10
-
-      [Chain.Dest.Tendermint.Fee]
-        Amount = 0
-        Denom = ""
+      query_filter = ""
 
       [Chain.Dest.Tendermint.Key]
-        Name = "node0"
-        Password = "1234567890"
+        name = "node0"
+        password = "1234567890"
         mnemonic = "twice point glass valley odor ivory shiver lawn arrest where misery welcome gate cable edit problem hire fly torch hope kid february blouse burger"
 
   [Chain.Source]
-    Chain_type = "tendermint"
-    Enabled = true
+    chain_type = "tendermint"
+    enabled = true
 
     [Chain.Source.Cache]
-      Filename = "sourcedata"
+      filename = "sourcedata"
       start_height = 10
 
-    [Chain.Source.Eth]
-      ChainID = 0
-      ChainName = ""
-      CommentSlot = 0
-      GasLimit = 0
-      MaxGasPrice = 0
-      TipCoefficient = 0.0
-      URI = ""
-      UpdateClientFrequency = 0
-      query_filter = "ack"
-
-      [Chain.Source.Eth.Contracts]
-
-        [Chain.Source.Eth.Contracts.AckPacket]
-          Addr = ""
-          OptPrivKey = ""
-          Topic = ""
-
-        [Chain.Source.Eth.Contracts.Client]
-          Addr = ""
-          OptPrivKey = ""
-          Topic = ""
-
-        [Chain.Source.Eth.Contracts.Packet]
-          Addr = ""
-          OptPrivKey = ""
-          Topic = ""
-
     [Chain.Source.Tendermint]
-      Chain_id = "teleport_8024612952360-1"
-      Chain_name = "teleport"
-      Clean_packet_enabled = true
-      Gas = 0
-      grpc_addr = "127.0.0.1:9090"
-      grpc_addr1 = "127.0.0.1:9090"
-      request_timeout = 100
-      update_client_frequency = 1
+      chain_id = "teleport_8544154630257-1"
+      chain_name = "testCreateClientB"
+      gas_limit =  122
+      gas_price = "121atele"
+      grpc_addr = "127.0.0.1:19090"
+      simulation_addr = "127.0.0.1:19090"
+      request_timeout = 0
+      update_client_frequency = 10
       query_filter = "ack"
-
-      [Chain.Source.Tendermint.Fee]
-        Amount = 0
-        Denom = ""
 
       [Chain.Source.Tendermint.Key]
-        Name = "node0"
-        Password = "1234567890"
+        name = "node0"
+        password = "1234567890"
         mnemonic = "near unhappy decade march tourist moral away govern zoo patient silk youth burger mix label mercy chat exhibit habit degree gospel banana pear caution"

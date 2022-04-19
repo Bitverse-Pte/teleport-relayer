@@ -10,6 +10,12 @@ const (
 	AckProof            = "ack"
 	Ack                 = "ack"
 	Packet              = "packet"
+
+	StatusActive  = "active"
+	StatusStopped = "stopped"
+
+	RetryTimes = 3
+
 	// ChannelTendermintToTendermint = "tendermint,tendermint"
 	// ChannelTendermintToEth        = "tendermint,eth"
 	// ChannelEthToTendermint        = "eth,tendermint"

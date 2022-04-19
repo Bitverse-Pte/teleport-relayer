@@ -18,3 +18,7 @@ type ReqUpgradeHeight struct {
 type ReqUpgradeExtraWait struct {
 	ExtraWait uint64 `json:"extra_wait" form:"extra_wait"`
 }
+
+type ReqRelayByHash struct {
+	Hash string `json:"hash" form:"hash"`
+}

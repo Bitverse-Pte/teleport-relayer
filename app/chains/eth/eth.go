@@ -3,9 +3,8 @@ package eth
 import (
 	log "github.com/sirupsen/logrus"
 
-	interfaces2 "github.com/teleport-network/teleport-relayer/app/interfaces"
-
 	"github.com/teleport-network/teleport-relayer/app/config"
+	interfaces2 "github.com/teleport-network/teleport-relayer/app/interfaces"
 	"github.com/teleport-network/teleport-relayer/app/types"
 )
 

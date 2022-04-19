@@ -12,9 +12,6 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
-	teleportsdk "github.com/teleport-network/teleport-sdk-go/client"
-
-	"github.com/teleport-network/teleport-relayer/app/interfaces"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcrypto "github.com/tendermint/tendermint/crypto"
@@ -35,6 +32,7 @@ import (
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 
 	"github.com/teleport-network/teleport-sdk-go/client"
+	teleportsdk "github.com/teleport-network/teleport-sdk-go/client"
 	xibcbsc "github.com/teleport-network/teleport/x/xibc/clients/light-clients/bsc/types"
 	xibceth "github.com/teleport-network/teleport/x/xibc/clients/light-clients/eth/types"
 	xibctendermint "github.com/teleport-network/teleport/x/xibc/clients/light-clients/tendermint/types"
@@ -45,6 +43,7 @@ import (
 	"github.com/teleport-network/teleport/x/xibc/exported"
 
 	"github.com/teleport-network/teleport-relayer/app/config"
+	"github.com/teleport-network/teleport-relayer/app/interfaces"
 	"github.com/teleport-network/teleport-relayer/app/types"
 	"github.com/teleport-network/teleport-relayer/app/types/errors"
 )
@@ -61,13 +60,15 @@ var (
 type Tendermint struct {
 	Codec                 *codec.ProtoCodec
 	TeleportSDK           *client.TeleportClient
-	TeleportSDK1          *client.TeleportClient
+	SimulationClient      *client.TeleportClient
 	address               string
 	chainName             string
 	chainType             string
 	updateClientFrequency uint64
 	queryFilter           string
 	gasPrice              string
+	gasLimit              uint64
+	l                     *sync.Mutex
 }
 
 func NewTendermintClient(
@@ -91,24 +92,27 @@ func NewTendermintClient(
 		panic(fmt.Errorf("cli.Key error:%+v", err))
 	}
 	// cal
-	cli1, err := client.NewClient(config.GrpcAddr1, config.ChainID)
+	simulationClient, err := client.NewClient(config.SimulationAddr, config.ChainID)
 	if err != nil {
 		panic(fmt.Errorf("tendermint new client error:%+v", err))
 	}
-	if err := cli1.WithKeyring(keyring.NewInMemory(cli1.GetCtx().KeyringOptions...)).ImportMnemonic(config.Key.Name, config.Key.Mnemonic); err != nil {
+	if err := simulationClient.WithKeyring(keyring.NewInMemory(simulationClient.GetCtx().KeyringOptions...)).ImportMnemonic(config.Key.Name, config.Key.Mnemonic); err != nil {
 		panic(fmt.Errorf("tendermint cli.WithKeyring error:%+v", err))
 	}
-	cli1.WithAccountRetrieverCache(cli.GetAccountRetriever().Cache)
+	simulationClient.WithAccountRetrieverCache(cli.GetAccountRetriever().Cache)
+
 	return &Tendermint{
 		chainType:             chainType,
 		chainName:             chainName,
 		Codec:                 cdc,
 		TeleportSDK:           cli,
-		TeleportSDK1:          cli1,
+		SimulationClient:      simulationClient,
 		updateClientFrequency: updateClientFrequency,
 		address:               address,
 		queryFilter:           config.QueryFilter,
 		gasPrice:              config.GasPrice,
+		gasLimit:              config.GasLimit,
+		l:                     new(sync.Mutex),
 	}, err
 }
 
@@ -160,6 +164,39 @@ func (c *Tendermint) GetPackets(fromBlock, toBlock uint64, destChainType string)
 	for _, acks := range ackss {
 		packets.AckPackets = append(packets.AckPackets, acks...)
 	}
+	return &packets, nil
+}
+
+func (c *Tendermint) GetPacketsByHash(hash string) (*types.Packets, error) {
+	var bizPackets []packettypes.Packet
+	var ackPackets []types.AckPacket
+	packets := types.Packets{}
+	// get by tx hash
+	res, err := c.TeleportSDK.TxClient.GetTx(context.Background(), &tx.GetTxRequest{
+		Hash: hash,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(res.TxResponse.Logs) == 0 {
+		return nil, err
+	}
+	stringEvents := res.TxResponse.Logs[0].Events
+	// find packet
+	tmpPackets, err := c.getPackets(stringEvents, "")
+	if err != nil {
+		return nil, err
+	}
+	bizPackets = append(bizPackets, tmpPackets...)
+	// find ack
+	tmpAckPacks, err := c.getAckPackets(stringEvents, "")
+	if err != nil {
+		return nil, err
+	}
+	ackPackets = append(ackPackets, tmpAckPacks...)
+	// set
+	packets.BizPackets = bizPackets
+	packets.AckPackets = ackPackets
 	return &packets, nil
 }
 
@@ -261,6 +298,7 @@ func (c *Tendermint) GetProof(sourChainName, destChainName string, sequence uint
 	if err != nil {
 		return nil, err
 	}
+	// ConvertProofs converts crypto.ProofOps into MerkleProof
 	merkleProof, err := commitmenttypes.ConvertProofs(res.ProofOps)
 	if err != nil {
 		//TODO return nil, nil, 0, err
@@ -272,53 +310,54 @@ func (c *Tendermint) GetProof(sourChainName, destChainName string, sequence uint
 	return proofBz, nil
 }
 
-// ConvertProofs converts crypto.ProofOps into MerkleProof
+func (c *Tendermint) RelayPackets(pkt sdk.Msg) (string, error) {
+	c.l.Lock()
+	defer c.l.Unlock()
 
-func (c *Tendermint) RelayPackets(msgs []sdk.Msg) (string, error) {
 	var err error
-	var packetMsgs []sdk.Msg
-	var packetDetail []string
-	for _, val := range msgs {
-		switch pkt := val.(type) {
-		case *packettypes.MsgRecvPacket:
-			pkt.Signer = c.address
-			packetMsgs = append(packetMsgs, pkt)
-			packetMsg := fmt.Sprintf("srcChain:%v,dest%v,sequence:%v chainType:packet", pkt.Packet.SourceChain, pkt.Packet.DestinationChain, pkt.Packet.Sequence)
-			packetDetail = append(packetDetail, packetMsg)
-		case *packettypes.MsgAcknowledgement:
-			pkt.Signer = c.address
-			packetMsgs = append(packetMsgs, pkt)
-			packetMsg := fmt.Sprintf("srcChain:%v,dest%v,sequence:%v chainType:ack", pkt.Packet.SourceChain, pkt.Packet.DestinationChain, pkt.Packet.Sequence)
-			packetDetail = append(packetDetail, packetMsg)
-		default:
-			return strings.Join(packetDetail, ","), fmt.Errorf("invalid packet type")
-		}
+	var msg sdk.Msg
+	switch packet := pkt.(type) {
+	case *packettypes.MsgRecvPacket:
+		packet.Signer = c.address
+		msg = packet
+	case *packettypes.MsgAcknowledgement:
+		packet.Signer = c.address
+		msg = packet
 	}
-	if len(packetMsgs) == 0 {
-		return strings.Join(packetDetail, ","), fmt.Errorf("invalid msgs or empty")
+	if msg == nil {
+		return "", fmt.Errorf("invalid packet type")
+	}
+	txf, err := teleportsdk.Prepare(c.TeleportSDK, msg.GetSigners()[0], msg)
+	if err != nil {
+		return "", err
+	}
+	// Simulate gas
+	txf1, err := teleportsdk.Prepare(c.SimulationClient, msg.GetSigners()[0], msg)
+	simulate, _, err := c.SimulationClient.CalculateGas(txf1, msg)
+	if err != nil {
+		return "", fmt.Errorf("Simulate failed:%+v ", err)
+	}
+	// gas used cannot bigger than gasLimit
+	if simulate.GasInfo.GasUsed > c.gasLimit {
+		return "", fmt.Errorf("Simulate gasuse  > config.gasLimit (%v > %v) ", simulate.GasInfo.GasUsed, c.gasLimit)
+	}
+	esGas := float32(simulate.GasInfo.GasUsed) * 1.2
+	if uint64(esGas) > c.gasLimit {
+		esGas = float32(c.gasLimit)
 	}
 
-	txf, err := teleportsdk.Prepare(c.TeleportSDK, packetMsgs[0].GetSigners()[0], packetMsgs[0])
-	if err != nil {
-		return strings.Join(packetDetail, ","), err
-	}
-	txf1, err := teleportsdk.Prepare(c.TeleportSDK1, msgs[0].GetSigners()[0], msgs[0])
-	simulate, _, err := c.TeleportSDK1.CalculateGas(txf1, msgs...)
-	if err != nil {
-		return strings.Join(packetDetail, ","), fmt.Errorf("Simulate failed:%+v ", err)
-	}
-	esGas := float32(simulate.GasInfo.GasUsed) * 1.5
-	gas := float32(esGas) * 1.5
-	txf = txf.WithGas(uint64(gas))
+	// Set gas
+	txf = txf.WithGas(uint64(esGas))
 	txf = txf.WithGasPrices(c.gasPrice)
-	res, err := c.TeleportSDK.Broadcast(txf, packetMsgs...)
+	// Broadcast tx
+	res, err := c.TeleportSDK.Broadcast(txf, msg)
 	if err != nil {
-		return strings.Join(packetDetail, ","), fmt.Errorf("broadcast tx error:%+v", err)
+		return "", fmt.Errorf("broadcast tx error:%+v", err)
 	}
 	if res.TxResponse.Code != 0 {
-		return strings.Join(packetDetail, ","), fmt.Errorf(res.TxResponse.RawLog)
+		return "", fmt.Errorf(res.TxResponse.RawLog)
 	}
-	return fmt.Sprintf("Relay tx Hash:%v\nPacketDetail:%v\n", res.TxResponse.TxHash, strings.Join(packetDetail, ",")), nil
+	return res.TxResponse.TxHash, nil
 }
 
 func (c *Tendermint) GetBlockTimestamp(height uint64) (uint64, error) {
@@ -464,6 +503,8 @@ func (c *Tendermint) GetLightClientDelayTime(chainName string) (uint64, error) {
 }
 
 func (c *Tendermint) UpdateClient(header exported.Header, chainName string) error {
+	c.l.Lock()
+	defer c.l.Unlock()
 	h := codectypes.UnsafePackAny(header)
 	msg := clienttypes.MsgUpdateClient{
 		ChainName: chainName,
@@ -474,15 +515,28 @@ func (c *Tendermint) UpdateClient(header exported.Header, chainName string) erro
 	if err != nil {
 		return err
 	}
-	txf1, err := teleportsdk.Prepare(c.TeleportSDK1, msg.GetSigners()[0], &msg)
-	simulate, _, err := c.TeleportSDK1.CalculateGas(txf1, &msg)
+
+	// Simulate gas
+	txf1, err := teleportsdk.Prepare(c.SimulationClient, msg.GetSigners()[0], &msg)
+	simulate, _, err := c.SimulationClient.CalculateGas(txf1, &msg)
 	if err != nil {
 		return fmt.Errorf("Simulate failed:%+v ", err)
 	}
-	esGas := float32(simulate.GasInfo.GasUsed) * 1.5
-	gas := float32(esGas) * 1.5
-	txf = txf.WithGas(uint64(gas))
+
+	// gas used cannot bigger than gasLimit
+	if simulate.GasInfo.GasUsed > c.gasLimit {
+		return fmt.Errorf("Simulate gasuse  > config.gasLimit (%v > %v) ", simulate.GasInfo.GasUsed, c.gasLimit)
+	}
+	esGas := float32(simulate.GasInfo.GasUsed) * 1.2
+	if uint64(esGas) > c.gasLimit {
+		esGas = float32(c.gasLimit)
+	}
+
+	// Set gas
+	txf = txf.WithGas(uint64(esGas))
 	txf = txf.WithGasPrices(c.gasPrice)
+
+	// Broadcast tx
 	res, err := c.TeleportSDK.Broadcast(txf, &msg)
 	if err != nil {
 		return err
@@ -494,6 +548,8 @@ func (c *Tendermint) UpdateClient(header exported.Header, chainName string) erro
 }
 
 func (c *Tendermint) BatchUpdateClient(headers []exported.Header, chainName string) error {
+	c.l.Lock()
+	defer c.l.Unlock()
 	var msgs []sdk.Msg
 	for _, header := range headers {
 		h := codectypes.UnsafePackAny(header)
@@ -511,15 +567,28 @@ func (c *Tendermint) BatchUpdateClient(headers []exported.Header, chainName stri
 	if err != nil {
 		return err
 	}
-	txf1, err := teleportsdk.Prepare(c.TeleportSDK1, msgs[0].GetSigners()[0], msgs[0])
-	simulate, _, err := c.TeleportSDK1.CalculateGas(txf1, msgs...)
+
+	// Simulate gas
+	txf1, err := teleportsdk.Prepare(c.SimulationClient, msgs[0].GetSigners()[0], msgs[0])
+	simulate, _, err := c.SimulationClient.CalculateGas(txf1, msgs...)
 	if err != nil {
 		return fmt.Errorf("Simulate failed:%+v ", err)
 	}
-	esGas := float32(simulate.GasInfo.GasUsed) * 1.5
-	gas := float32(esGas) * 1.5
-	txf = txf.WithGas(uint64(gas))
+
+	// gas used cannot bigger than gasLimit
+	if simulate.GasInfo.GasUsed > c.gasLimit {
+		return fmt.Errorf("Simulate gasuse  > config.gasLimit (%v > %v) ", simulate.GasInfo.GasUsed, c.gasLimit)
+	}
+	esGas := float32(simulate.GasInfo.GasUsed) * 1.2
+	if uint64(esGas) > c.gasLimit {
+		esGas = float32(c.gasLimit)
+	}
+
+	// Set gas
+	txf = txf.WithGas(uint64(esGas))
 	txf = txf.WithGasPrices(c.gasPrice)
+
+	// Broadcast tx
 	res, err := c.TeleportSDK.Broadcast(txf, msgs...)
 	if err != nil {
 		return err
@@ -557,7 +626,6 @@ func (c *Tendermint) GetReceiptPacket(sourChainName, destChianName string, seque
 }
 
 func (c *Tendermint) ChainName() string {
-
 	return c.chainName
 }
 

@@ -1,8 +1,10 @@
 package config
 
 import (
-	"fmt"
+	"encoding/json"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/teleport-network/teleport-relayer/tools"
 )
@@ -15,5 +17,7 @@ func TestLoadConfigs(t *testing.T) {
 			Pointer:  &cfg,
 		},
 	})
-	fmt.Println(cfg.Chain.Source.Tendermint.GrpcAddr1)
+	marshal, err := json.Marshal(cfg)
+	require.NoError(t, err)
+	t.Log(string(marshal))
 }

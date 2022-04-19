@@ -145,6 +145,17 @@ func TestGetPacket(t *testing.T) {
 	fmt.Println(data.String())
 }
 
+func TestGetPacketByHash(t *testing.T) {
+	client := getEth(t)
+	packets, err := client.GetPacketsByHash("")
+	require.NoError(t, err)
+	require.NotNil(t, packets.BizPackets)
+	var data transfertypes.FungibleTokenPacketData
+	err = data.DecodeBytes(packets.BizPackets[0].DataList[0])
+	require.NoError(t, err)
+	fmt.Println(data.String())
+}
+
 func getEth(t *testing.T) *Eth {
 	optPrivKey := "d10f695d6cbe3d12808a23ba10b5d1fc407dbe0caabb18935e02aedcec8b358b"
 

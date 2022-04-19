@@ -5,13 +5,16 @@ import (
 	"sync"
 	"time"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
 	"github.com/go-co-op/gocron"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
 	"github.com/teleport-network/teleport/x/xibc/exported"
 
 	"github.com/teleport-network/teleport-relayer/app/types"
+	"github.com/teleport-network/teleport-relayer/app/types/errors"
+	"github.com/teleport-network/teleport-relayer/app/utils"
 )
 
 func (c *Channel) validatePacketHeight(height uint64) error {
@@ -120,7 +123,16 @@ func (c *Channel) batchGetBlockHeader(reqHeight, revisionHeight, revisionNumber,
 }
 
 func (c *Channel) RelayTask(s *gocron.Scheduler) {
+	// relay jobs
 	relayJobs, err := s.Every(int(c.relayFrequency)).Seconds().Do(func() {
+		// when bridge got exception do not to relay packets
+		if c.bridgeEnable {
+			status, err := utils.RetryGetBridgeStatus(c.bridgeStatusApi)
+			if err != nil || status != 1 {
+				c.logger.Errorf("Bridge status got exception,should stop relay job, err : %+v", err)
+				return
+			}
+		}
 		time.Sleep(time.Duration(c.extraWait*c.relayFrequency) * time.Second)
 		c.UpdateHeight()
 		if err := c.RelayPackets(c.relayHeight); err != nil {
@@ -132,6 +144,8 @@ func (c *Channel) RelayTask(s *gocron.Scheduler) {
 		c.logger.Fatal(fmt.Errorf("new relay Jobs error:%+v", err))
 	}
 	relayJobs.SingletonMode()
+
+	// update client jobs
 	if c.chainA.ChainType() == types.ETH || c.chainA.ChainType() == types.BSC {
 		updateJobs, err := s.Every(int(c.relayFrequency)).Seconds().Do(func() {
 			time.Sleep(time.Duration(c.extraWait*c.relayFrequency) * time.Second)
@@ -173,28 +187,28 @@ func (c *Channel) RelayPackets(height uint64) error {
 		return fmt.Errorf("get latest height error %+v", err)
 	}
 	updateHeight := height
-	var pkt []sdk.Msg
+	var pkts []sdk.Msg
 	verifyHeight := c.clientHeight
 	if c.chainA.ChainType() == types.Tendermint {
 		verifyHeight = chainAHeight
 	}
 	if height+delayHeight+50 < verifyHeight {
 		c.logger.Infof("get packet fromBlock:%v,toBlock:%v", height, height+9)
-		pkt, err = c.GetMsg(height, height+49)
+		pkts, err = c.GetMsg(height, height+49)
 		if err != nil {
 			return fmt.Errorf("batchGetMsg error:%+v", err)
 		}
 		updateHeight += 50
 	} else if height+delayHeight+c.batchSize < verifyHeight {
 		c.logger.Infof("get packet fromBlock:%v,toBlock:%v", height, height+9)
-		pkt, err = c.GetMsg(height, height+c.batchSize-1)
+		pkts, err = c.GetMsg(height, height+c.batchSize-1)
 		if err != nil {
 			return fmt.Errorf("batchGetMsg error:%+v", err)
 		}
 		updateHeight += c.batchSize
 	} else if height+delayHeight < verifyHeight {
 		c.logger.Infof("get packet fromBlock:%v,toBlock:%v", height, height)
-		pkt, err = c.GetMsg(height, verifyHeight-delayHeight-1)
+		pkts, err = c.GetMsg(height, verifyHeight-delayHeight-1)
 		if err != nil {
 			return fmt.Errorf("get msg err:%+v", err)
 		}
@@ -203,7 +217,7 @@ func (c *Channel) RelayPackets(height uint64) error {
 		time.Sleep(10 * time.Second)
 		return fmt.Errorf("height + delayHeight >= verifyHeight")
 	}
-	if len(pkt) == 0 {
+	if len(pkts) == 0 {
 		c.relayHeight = updateHeight
 		return nil
 	}
@@ -213,21 +227,151 @@ func (c *Channel) RelayPackets(height uint64) error {
 		}
 		time.Sleep(5 * time.Second)
 	}
-	chainBHeight, err := c.chainB.GetLatestHeight()
-	if err != nil {
-		return fmt.Errorf("get chainB latest heigt error:%v", err)
-	}
-	if res, err := c.chainB.RelayPackets(pkt); err != nil {
-		if !handleRecvPacketsError(err) {
-			c.logger.Info("RelayPackets result:", res)
-			c.logger.Infof("RelayPackets result: %v\n , recv height : %v", res, chainBHeight)
-			return fmt.Errorf("RelayPackets error:%v", err)
+
+	for _, pkt := range pkts {
+		// get height , show it when relay success
+		chainBHeight, err := c.chainB.GetLatestHeight()
+		if err != nil {
+			return fmt.Errorf("get chainB latest heigt error:%v", err)
 		}
-		c.logger.Infof("RelayPackets result: %v\n", res)
+
+		res, err := c.RetryRelay(pkt)
+		if err != nil {
+			c.logger.Infof("RelayPackets result: %v , err : %v", res, err)
+			packetDetail := types.GetPacketDetail(pkt)
+			packetDetail.FromHeight = height
+			packetDetail.ToHeight = updateHeight
+			packetDetail.ChainName = c.chainA.ChainName()
+			// Write Err relay details and
+			if err := c.errRelay.WriteErrRelay(packetDetail); err != nil {
+				c.logger.Errorf("errRelay.WriteErrRelay error:%v", err.Error())
+			}
+			continue
+		}
+		c.logger.Infof(" recv hash : %v ,recv height %v", res, chainBHeight)
 	}
-	c.logger.Infof(" recv height : %v", chainBHeight)
 	c.logger.Infoln("endRelay ...", time.Now())
-	c.logger.Infoln("relay total time", time.Now().Sub(now))
 	c.relayHeight = updateHeight
 	return nil
+}
+
+func (c *Channel) RetryRelay(pkt sdk.Msg) (res string, err error) {
+	for i := 0; i < types.RetryTimes; i++ {
+		res, err = c.chainB.RelayPackets(pkt)
+		if err != nil {
+			// check if packet already relayed
+			if handleRecvPacketsError(err) {
+				return res, nil
+			}
+			continue
+		}
+		break
+	}
+	return
+}
+
+func (c *Channel) ManualRelay(packetRelay *types.PacketDetail, hash string) error {
+	start := time.Now()
+
+	latestHeight, err := c.chainA.GetLatestHeight()
+	if err != nil {
+		return err
+	}
+
+	if c.chainA.ChainType() == types.Tendermint {
+		c.logger.Infof(" Tendermint client need update client first,update height : %v", latestHeight)
+		if err := c.UpdateClientByHeight(latestHeight); err != nil {
+			return err
+		}
+		time.Sleep(3 * time.Second)
+	}
+
+	state, err := c.chainB.GetLightClientState(c.chainA.ChainName())
+	if err != nil {
+		return err
+	}
+
+	clientHeight := state.GetLatestHeight().GetRevisionHeight()
+	delayHeight := state.GetDelayBlock()
+	endHeight := clientHeight - delayHeight
+
+	if packetRelay.ToHeight > endHeight {
+		return sdkerrors.Wrapf(errors.ErrDelayHeight, "height must lower than %d ,your hright is %d-%d", endHeight, packetRelay.FromHeight, packetRelay.ToHeight)
+	}
+	var pkts []sdk.Msg
+	if hash != "" {
+		pkts, err = c.GetMsgByHash(hash)
+		if err != nil {
+			return sdkerrors.Wrapf(errors.ErrGetPackets, " err GetMsg by hash! : %v", err)
+		}
+		_, err = c.manualRelayAll(pkts)
+		if err != nil {
+			return err
+		}
+		return nil
+	} else {
+		pkts, err = c.GetMsg(packetRelay.FromHeight, packetRelay.ToHeight)
+		if err != nil {
+			return sdkerrors.Wrapf(errors.ErrGetPackets, " err GetMsg! : %v", err)
+		}
+	}
+	if len(pkts) == 0 {
+		c.logger.Printf(" no packets need to relay in %v - %v ", packetRelay.FromHeight, packetRelay.ToHeight)
+		return nil
+	}
+	if packetRelay.Sequence != 0 && packetRelay.SrcChain != "" && packetRelay.DestChain != "" {
+		err = c.manualRelaySin(pkts, packetRelay.SrcChain, packetRelay.DestChain, packetRelay.RelayChain, packetRelay.Sequence)
+		if err != nil {
+			return err
+		}
+	} else {
+		_, err = c.manualRelayAll(pkts)
+		if err != nil {
+			return err
+		}
+	}
+	c.logger.Infof(" relay use time : %v", time.Now().Sub(start))
+	return nil
+}
+
+func (c *Channel) manualRelaySin(pkts []sdk.Msg, srcChain, destChain, relayChain string, sequence uint64) error {
+	receipt, err := c.chainB.GetReceiptPacket(srcChain, destChain, sequence)
+	if err != nil {
+		return sdkerrors.Wrapf(errors.ErrGetPackets, " err get receipt! : %v", err)
+	}
+	if receipt {
+		return sdkerrors.Wrapf(errors.ErrGetPackets, "packet already relay and the receipt is %v ", receipt)
+	}
+	for _, pkt := range pkts {
+		packetDetail := types.GetPacketDetail(pkt)
+		if packetDetail.Equal(srcChain, destChain, relayChain, sequence) {
+			res, err := c.RetryRelay(pkt)
+			if err != nil {
+				return sdkerrors.Wrapf(errors.ErrRecvPacket, "packet already relay and the receipt is %v ", receipt)
+			}
+			c.logger.Infof(" recv hash : %v", res)
+			return nil
+		}
+	}
+	return nil
+}
+
+func (c *Channel) manualRelayAll(pkts []sdk.Msg) (res string, err error) {
+	for _, pkt := range pkts {
+		packetDetail := types.GetPacketDetail(pkt)
+		receipt, err := c.chainB.GetReceiptPacket(packetDetail.SrcChain, packetDetail.DestChain, packetDetail.Sequence)
+		if err != nil {
+			return "", sdkerrors.Wrapf(errors.ErrGetReceiptPacket, " err get receipt! : %v", err)
+		}
+		if receipt {
+			c.logger.Infof(" packet already relay the receipt is %v \n packet detiles:", receipt)
+			continue
+		}
+		res, err = c.RetryRelay(pkt)
+		if err != nil {
+			return "", sdkerrors.Wrapf(errors.ErrRecvPacket, " err : %v", err)
+		}
+		c.logger.Infof(" recv hash : %v", res)
+	}
+	return
 }

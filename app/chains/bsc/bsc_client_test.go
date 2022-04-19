@@ -2,16 +2,16 @@ package bsc
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
-
-	"github.com/stretchr/testify/require"
+	"github.com/ethereum/go-ethereum/rpc"
 
 	transfertypes "github.com/teleport-network/teleport/x/xibc/apps/transfer/types"
 	"github.com/teleport-network/teleport/x/xibc/core/host"
@@ -37,13 +37,24 @@ func TestNewBsc(t *testing.T) {
 func TestGetPackets(t *testing.T) {
 	bscClient := newBscClient(t)
 
-	packets, err := bscClient.GetPackets(18444946, 18444946, "")
+	packets, err := bscClient.GetPackets(18575930, 18575930, "")
 	require.NoError(t, err)
 	require.NotNil(t, packets.BizPackets)
 	var data transfertypes.FungibleTokenPacketData
 	err = data.DecodeBytes(packets.BizPackets[0].DataList[0])
 	require.NoError(t, err)
 	require.NotNil(t, data)
+}
+
+func TestGetPacketByHash(t *testing.T) {
+	client := newBscClient(t)
+	packets, err := client.GetPacketsByHash("0x7755e0105e5cd796cced4dca65bd11cb9c11160eaab08348cf56f746a28394c1")
+	require.NoError(t, err)
+	require.NotNil(t, packets.BizPackets)
+	var data transfertypes.FungibleTokenPacketData
+	err = data.DecodeBytes(packets.BizPackets[0].DataList[0])
+	require.NoError(t, err)
+	fmt.Println(data.String())
 }
 
 func TestGetProofIndex(t *testing.T) {
@@ -69,19 +80,19 @@ func newBscClient(t *testing.T) *Bsc {
 	optPrivKey := "FB0536CF27B7F16EAB7F8BBD1771980E83ECE69F50BE30A7161D7E643645958D"
 
 	contractCfgGroup := NewContractCfgGroup()
-	contractCfgGroup.Packet.Addr = "0x2015c336b20960735acb5fdfa4fd5ae63bc740ed"
+	contractCfgGroup.Packet.Addr = "0xd453996ee59d7c19c4457ea9e3602f13cc3017e3"
 	contractCfgGroup.Packet.Topic = "PacketSent((uint64,string,string,string,string[],bytes[]))"
 	contractCfgGroup.Packet.OptPrivKey = optPrivKey
 
-	contractCfgGroup.AckPacket.Addr = "0x2015c336b20960735acb5fdfa4fd5ae63bc740ed"
+	contractCfgGroup.AckPacket.Addr = "0xd453996ee59d7c19c4457ea9e3602f13cc3017e3"
 	contractCfgGroup.AckPacket.Topic = "AckWritten((uint64,string,string,string,string[],bytes[]),bytes)"
 	contractCfgGroup.AckPacket.OptPrivKey = optPrivKey
 
-	contractCfgGroup.Client.Addr = "0x1fb523b65e75dd74c6eebc5e7a2785c283ab8f42"
+	contractCfgGroup.Client.Addr = "0x0053023426adf026c59c80c1880b065b71759dc5"
 	contractCfgGroup.Client.Topic = ""
 	contractCfgGroup.Client.OptPrivKey = optPrivKey
 
-	contractCfgGroup.Transfer.Addr = "0xa85d7a0f8f7b6eb551f44c099e99050c6b9462a9"
+	contractCfgGroup.Transfer.Addr = "0x8e464b45f4cfb84c5f360d922afc338e56592625"
 	contractCfgGroup.Transfer.Topic = "Transfer((string,uint256,string,string))"
 	contractCfgGroup.Transfer.OptPrivKey = optPrivKey
 	contractBindOptsCfg := NewContractBindOptsCfg()

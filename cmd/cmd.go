@@ -1,16 +1,16 @@
 package cmd
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"strconv"
-
-	"github.com/teleport-network/teleport-relayer/version"
-
-	"github.com/teleport-network/teleport-relayer/cmd/generate"
 
 	"github.com/spf13/cobra"
 
 	"github.com/teleport-network/teleport-relayer/app/config"
+	"github.com/teleport-network/teleport-relayer/cmd/generate"
+	"github.com/teleport-network/teleport-relayer/version"
 )
 
 var (
@@ -62,6 +62,57 @@ var (
 		},
 	}
 	versionCmd = version.NewVersionCommand()
+
+	manualRelayCmd = &cobra.Command{
+		Use:     "relay [chainName] [fromHeight] [toHeight] [srcChain] [destChain] [sequence] [relayChain]",
+		Short:   "manual relay with the packet fromHeight and toHeight",
+		Example: fmt.Sprintf("relay teleport 1 1 teleport rinkeby \nrelay bsctest 1 1 bsctest rinkeby teleport 1"),
+		Args:    cobra.RangeArgs(1, 6),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) != 1 && len(args) != 3 && len(args) != 7 {
+				return errors.New("incorrect quantity")
+			}
+			ChainName = args[0]
+			// when hash flag not nil ,relay by hash
+			if cmd.Flag("hash").Value.String() != "" {
+				err := manualRelay()
+				if err != nil {
+					return err
+				}
+			} else {
+				arg1, err := strconv.ParseUint(args[1], 10, 64)
+				if err != nil {
+					return err
+				}
+				arg2, err := strconv.ParseUint(args[2], 10, 64)
+				if err != nil {
+					return err
+				}
+
+				FromHeight = arg1
+				ToHeight = arg2
+
+				if ToHeight < FromHeight || FromHeight < 1 {
+					return errors.New("invalid height")
+				}
+				if len(args) == 6 {
+					SrcChain = args[3]
+					DestChain = args[4]
+					arg5, err := strconv.ParseUint(args[5], 10, 64)
+					if err != nil {
+						return err
+					}
+					Sequence = arg5
+					RelayChain = args[6]
+				}
+				err = manualRelay()
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	}
 )
 
 func init() {
@@ -74,12 +125,16 @@ func init() {
 	startCmd.Flags().StringVarP(&config.LocalConfig, "CONFIG", "c", "", "config path: /opt/local.toml")
 	startCmd.Flags().StringVarP(&config.Home, "home", "", "", "default ~/.teleport-relayer")
 	startCmd.Flags().StringVarP(&config.Port, "port", "", "", "default 8080")
+	manualRelayCmd.Flags().StringVarP(&config.LocalConfig, "CONFIG", "c", "", "config path: /opt/local.toml")
+	manualRelayCmd.Flags().StringVarP(&Hash, "hash", "", "", "hash <hash>")
+
 	rootCmd.AddCommand(startCmd)
 	rootCmd.AddCommand(generateCmd)
 	rootCmd.AddCommand(configInitCmd)
 	rootCmd.AddCommand(batchCmd)
 	rootCmd.AddCommand(genCmd)
 	rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(manualRelayCmd)
 }
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
