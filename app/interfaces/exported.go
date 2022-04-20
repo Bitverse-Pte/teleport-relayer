@@ -16,13 +16,9 @@ type IChain interface {
 	GetCommitmentsPacket(sourChainName, destChainName string, sequence uint64) error
 	GetReceiptPacket(sourChainName, destChainName string, sequence uint64) (bool, error)
 	GetBlockHeader(*types.GetBlockHeaderReq) (exported.Header, error)
-	GetBlockTimestamp(height uint64) (uint64, error)
 	GetLightClientState(string) (exported.ClientState, error)
-	GetLightClientConsensusState(string, uint64) (exported.ConsensusState, error)
 	GetLatestHeight() (uint64, error)
 	GetLightClientDelayHeight(string) (uint64, error)
-	GetLightClientDelayTime(string) (uint64, error)
-	ClientUpdateValidate(revisionHeight, delayHeight, updateHeight uint64) (uint64, error)
 	UpdateClient(header exported.Header, chainName string) error
 	BatchUpdateClient(headers []exported.Header, chainName string) error
 	GetResult(hash string) (uint64, error)

@@ -104,7 +104,6 @@ func newBsc(config *ChainConfig) (*Bsc, error) {
 }
 
 func (b *Bsc) ClientUpdateValidate(revisionHeight, delayHeight, updateHeight uint64) (uint64, error) {
-
 	return updateHeight, nil
 }
 
