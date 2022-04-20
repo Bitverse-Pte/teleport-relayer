@@ -109,11 +109,11 @@ func (b *Bsc) ClientUpdateValidate(revisionHeight, delayHeight, updateHeight uin
 }
 
 func (b *Bsc) GetPackets(fromBlock, toBlock uint64, destChainType string) (*types.Packets, error) {
-	bizPackets, err := b.getPackets(fromBlock, toBlock)
+	bizPackets, err := b.getPackets(fromBlock, toBlock, "")
 	if err != nil {
 		return nil, err
 	}
-	ackPackets, err := b.getAckPackets(fromBlock, toBlock)
+	ackPackets, err := b.getAckPackets(fromBlock, toBlock, "")
 	if err != nil {
 		return nil, err
 	}
@@ -136,11 +136,11 @@ func (b *Bsc) GetPacketsByHash(hash string) (*types.Packets, error) {
 		return nil, err
 	}
 	height := block.NumberU64()
-	bizPackets, err := b.getPackets(height, height)
+	bizPackets, err := b.getPackets(height, height, hash)
 	if err != nil {
 		return nil, err
 	}
-	ackPackets, err := b.getAckPackets(height, height)
+	ackPackets, err := b.getAckPackets(height, height, hash)
 	if err != nil {
 		return nil, err
 	}
@@ -474,7 +474,7 @@ func toBlockNumArg(number *big.Int) string {
 }
 
 // get packets from block
-func (b *Bsc) getPackets(fromBlock, toBlock uint64) ([]packettypes.Packet, error) {
+func (b *Bsc) getPackets(fromBlock, toBlock uint64, hash string) ([]packettypes.Packet, error) {
 	if strings.Contains(b.queryFilter, types.Packet) {
 		return nil, nil
 	}
@@ -487,6 +487,9 @@ func (b *Bsc) getPackets(fromBlock, toBlock uint64) ([]packettypes.Packet, error
 
 	var bizPackets []packettypes.Packet
 	for _, log := range logs {
+		if hash != "" && !bytes.Equal(log.TxHash.Bytes(), common.HexToHash(hash).Bytes()) {
+			continue
+		}
 		packSent, err := b.contracts.Packet.ParsePacketSent(log)
 		if err != nil {
 			return nil, err
@@ -505,7 +508,7 @@ func (b *Bsc) getPackets(fromBlock, toBlock uint64) ([]packettypes.Packet, error
 }
 
 // get ack packets from block
-func (b *Bsc) getAckPackets(fromBlock, toBlock uint64) ([]types.AckPacket, error) {
+func (b *Bsc) getAckPackets(fromBlock, toBlock uint64, hash string) ([]types.AckPacket, error) {
 	if strings.Contains(b.queryFilter, types.Ack) {
 		return nil, nil
 	}
@@ -518,6 +521,9 @@ func (b *Bsc) getAckPackets(fromBlock, toBlock uint64) ([]types.AckPacket, error
 
 	var ackPackets []types.AckPacket
 	for _, log := range logs {
+		if hash != "" && !bytes.Equal(log.TxHash.Bytes(), common.HexToHash(hash).Bytes()) {
+			continue
+		}
 		ackWritten, err := b.contracts.Packet.ParseAckWritten(log)
 		if err != nil {
 			return nil, err

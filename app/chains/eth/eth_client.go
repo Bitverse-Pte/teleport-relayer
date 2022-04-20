@@ -238,11 +238,11 @@ func (eth *Eth) reTryEthResult(hash string, n uint64) error {
 }
 
 func (eth *Eth) GetPackets(fromBlock, toBlock uint64, destChainType string) (*types.Packets, error) {
-	bizPackets, err := eth.getPackets(fromBlock, toBlock)
+	bizPackets, err := eth.getPackets(fromBlock, toBlock, "")
 	if err != nil {
 		return nil, err
 	}
-	ackPackets, err := eth.getAckPackets(fromBlock, toBlock)
+	ackPackets, err := eth.getAckPackets(fromBlock, toBlock, "")
 	if err != nil {
 		return nil, err
 	}
@@ -263,11 +263,11 @@ func (eth *Eth) GetPacketsByHash(hash string) (*types.Packets, error) {
 		return nil, err
 	}
 	height := block.NumberU64()
-	bizPackets, err := eth.getPackets(height, height)
+	bizPackets, err := eth.getPackets(height, height, hash)
 	if err != nil {
 		return nil, err
 	}
-	ackPackets, err := eth.getAckPackets(height, height)
+	ackPackets, err := eth.getAckPackets(height, height, hash)
 	if err != nil {
 		return nil, err
 	}
@@ -493,7 +493,7 @@ func toBlockNumArg(number *big.Int) string {
 }
 
 // get packets from block
-func (eth *Eth) getPackets(fromBlock, toBlock uint64) ([]packettypes.Packet, error) {
+func (eth *Eth) getPackets(fromBlock, toBlock uint64, hash string) ([]packettypes.Packet, error) {
 	if strings.Contains(eth.queryFilter, types.Packet) {
 		return nil, nil
 	}
@@ -505,6 +505,9 @@ func (eth *Eth) getPackets(fromBlock, toBlock uint64) ([]packettypes.Packet, err
 	}
 	var bizPackets []packettypes.Packet
 	for _, log := range logs {
+		if hash != "" && !bytes.Equal(log.TxHash.Bytes(), common.HexToHash(hash).Bytes()) {
+			continue
+		}
 		packSent, err := eth.contracts.Packet.ParsePacketSent(log)
 		if err != nil {
 			return nil, err
@@ -524,7 +527,7 @@ func (eth *Eth) getPackets(fromBlock, toBlock uint64) ([]packettypes.Packet, err
 }
 
 // get ack packets from block
-func (eth *Eth) getAckPackets(fromBlock, toBlock uint64) ([]types.AckPacket, error) {
+func (eth *Eth) getAckPackets(fromBlock, toBlock uint64, hash string) ([]types.AckPacket, error) {
 	if strings.Contains(eth.queryFilter, types.Ack) {
 		return nil, nil
 	}
@@ -537,6 +540,9 @@ func (eth *Eth) getAckPackets(fromBlock, toBlock uint64) ([]types.AckPacket, err
 
 	var ackPackets []types.AckPacket
 	for _, log := range logs {
+		if hash != "" && !bytes.Equal(log.TxHash.Bytes(), common.HexToHash(hash).Bytes()) {
+			continue
+		}
 		ackWritten, err := eth.contracts.Packet.ParseAckWritten(log)
 		if err != nil {
 			return nil, err
