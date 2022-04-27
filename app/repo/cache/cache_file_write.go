@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/teleport-network/teleport-relayer/app/types"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
-
-	"github.com/teleport-network/teleport-relayer/app/types"
 )
 
 type CacheFileWriter struct {
@@ -25,55 +25,126 @@ func NewCacheFileWriter(homeDir, cacheDir, cacheFilename string) *CacheFileWrite
 	}
 }
 
-func (w *CacheFileWriter) WriteErrRelay(packetDetail types.PacketDetail) error {
-	cacheDataWriteBytes, err := json.Marshal(&packetDetail)
-	if err != nil {
-		return err
-	}
-
+func (w *CacheFileWriter) WriteErrRelay(packetDetails []types.PacketDetail, isCover bool) error {
 	cacheDir := path.Join(w.homeDir, w.cacheDir)
 	filename := path.Join(cacheDir, w.cacheFilename)
-	fmt.Println(filename)
+	var file *os.File
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		// And the home folder doesn't exist
-		if _, err := os.Stat(w.homeDir); os.IsNotExist(err) {
-			// Create the home folder
-			if err = os.Mkdir(w.homeDir, os.ModePerm); err != nil {
-				return err
-			}
-		}
 		// Create the home config folder
 		if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
 			// Create the home folder
-			if err = os.Mkdir(cacheDir, os.ModePerm); err != nil {
+			if err = os.MkdirAll(cacheDir, os.ModePerm); err != nil {
 				return err
 			}
 		}
 		// Then create the file...
-		file, err := os.Create(filename)
+		file, err = os.Create(filename)
 		if err != nil {
 			return err
 		}
-		defer file.Close()
-		write := bufio.NewWriter(file)
+	} else {
+		if isCover {
+			file, err = os.OpenFile(filename, os.O_WRONLY|os.O_TRUNC, 0666)
+		} else {
+			file, err = os.OpenFile(filename, os.O_WRONLY|os.O_APPEND, 0666)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	defer file.Close()
+	write := bufio.NewWriter(file)
+	for _,packetDetail := range packetDetails{
+		cacheDataWriteBytes, err := json.Marshal(&packetDetail)
+		if err != nil {
+			return err
+		}
 		if _, err = write.WriteString(fmt.Sprintf("%v\n", string(cacheDataWriteBytes))); err != nil {
 			return err
 		}
-		write.Flush()
+	}
+	write.Flush()
+	return nil
+}
+
+func (w *CacheFileWriter) WriteAllErrRelay(packetDetail []types.PacketDetail) error {
+	cacheDataWriteBytes, err := json.Marshal(&packetDetail)
+	if err != nil {
+		return err
+	}
+	cacheDir := path.Join(w.homeDir, w.cacheDir)
+	filename := path.Join(cacheDir, w.cacheFilename)
+	var file *os.File
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		// Create the home config folder
+		if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
+			// Create the home folder
+			if err = os.MkdirAll(cacheDir, os.ModePerm); err != nil {
+				return err
+			}
+		}
+		// Then create the file...
+		file, err = os.Create(filename)
+		if err != nil {
+			return err
+		}
 
 	} else {
-		file, err := os.OpenFile(filename, os.O_WRONLY|os.O_APPEND, 0666)
+		file, err = os.OpenFile(filename, os.O_WRONLY|os.O_APPEND, 0666)
 		if err != nil {
 			return err
 		}
-		defer file.Close()
-		write := bufio.NewWriter(file)
-		if _, err = write.WriteString(fmt.Sprintf("%v\n", string(cacheDataWriteBytes))); err != nil {
-			return err
-		}
-		write.Flush()
 	}
-	return nil
+	defer file.Close()
+	_, err = file.Write(cacheDataWriteBytes)
+	return err
+}
+
+func (w *CacheFileWriter) GetErrRelay() ([]types.PacketDetail, error) {
+	var packetDetails []types.PacketDetail
+	cacheDir := path.Join(w.homeDir, w.cacheDir)
+	filename := path.Join(cacheDir, w.cacheFilename)
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		return nil, err
+	}
+	f, err := os.Open(filename)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	rd := bufio.NewReader(f)
+	for {
+		line, err := rd.ReadString('\n')
+		if err != nil || io.EOF == err {
+			if line == "" {
+				break
+			}
+		}
+		var packetDetail types.PacketDetail
+		if err := json.Unmarshal([]byte(line), &packetDetail); err != nil {
+			return nil, err
+		}
+		packetDetails = append(packetDetails, packetDetail)
+	}
+	return packetDetails, nil
+}
+
+func (w *CacheFileWriter) GetAllErrRelay() ([]types.PacketDetail, error) {
+	var packetDetails []types.PacketDetail
+	cacheDir := path.Join(w.homeDir, w.cacheDir)
+	filename := path.Join(cacheDir, w.cacheFilename)
+	fmt.Println(filename)
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		return nil, err
+	}
+	packetDetailByte, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(packetDetailByte, &packetDetails); err != nil {
+		return nil, err
+	}
+	return packetDetails, nil
 }
 
 func (w *CacheFileWriter) Write(height uint64) error {

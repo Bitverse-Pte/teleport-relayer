@@ -1,6 +1,8 @@
 package cache
 
 import (
+	"fmt"
+	"github.com/stretchr/testify/require"
 	"os"
 	"path/filepath"
 	"testing"
@@ -15,22 +17,39 @@ func TestCacheFileWriter_Write(t *testing.T) {
 	dir := "cache"
 	filename := "teleport.json"
 	writer := NewCacheFileWriter(homeDir, dir, filename)
-	//if err := writer.Write(1); err != nil {
-	//	t.Fatal(err)
-	//}
-	writer.WriteErrRelay(types.PacketDetail{
+	pts := []types.PacketDetail{}
+	pts = append(pts, types.PacketDetail{
 		Sequence:  1,
 		SrcChain:  "rinkeby",
 		DestChain: "teleport",
 	})
-	writer.WriteErrRelay(types.PacketDetail{
+	pts = append(pts, types.PacketDetail{
 		Sequence:  1,
 		SrcChain:  "rinkeby",
 		DestChain: "teleport",
 	})
-	writer.WriteErrRelay(types.PacketDetail{
+	pts = append(pts, types.PacketDetail{
 		Sequence:  1,
 		SrcChain:  "rinkeby",
 		DestChain: "teleport",
 	})
+	pts = append(pts, types.PacketDetail{
+		Sequence:  1,
+		SrcChain:  "rinkeby",
+		DestChain: "teleport",
+	})
+	writer.WriteErrRelay(pts,true)
+}
+
+func TestCacheFileWriter_Read(t *testing.T) {
+	cfgDirName := ".xibc-relayer"
+	userDir, _ := os.UserHomeDir()
+	homeDir := filepath.Join(userDir, cfgDirName)
+	dir := "cache"
+	filename := "teleport.json"
+	writer := NewCacheFileWriter(homeDir, dir, filename)
+	p, err := writer.GetErrRelay()
+	require.NoError(t, err)
+	fmt.Println(p)
+	writer.WriteErrRelay(p, false)
 }

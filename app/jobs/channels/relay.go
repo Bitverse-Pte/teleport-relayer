@@ -171,6 +171,9 @@ func (c *Channel) RelayTask(s *gocron.Scheduler) {
 }
 
 func (c *Channel) RelayPackets(height uint64) error {
+	if err :=c.handleErrRelayRecord();err != nil {
+		c.logger.Errorf("handleErrRelayRecord error:%+v",err)
+	}
 	now := time.Now()
 	c.logger.Infoln("startRelay ...", now)
 	delayHeight, err := c.chainB.GetLightClientDelayHeight(c.chainA.ChainName())
@@ -243,7 +246,7 @@ func (c *Channel) RelayPackets(height uint64) error {
 			packetDetail.ToHeight = updateHeight
 			packetDetail.ChainName = c.chainA.ChainName()
 			// Write Err relay details and
-			if err := c.errRelay.WriteErrRelay(packetDetail); err != nil {
+			if err := c.errRelay.WriteErrRelay([]types.PacketDetail{packetDetail}, false); err != nil {
 				c.logger.Errorf("errRelay.WriteErrRelay error:%v", err.Error())
 			}
 			continue
@@ -253,6 +256,37 @@ func (c *Channel) RelayPackets(height uint64) error {
 	c.logger.Infoln("endRelay ...", time.Now())
 	c.relayHeight = updateHeight
 	return nil
+}
+
+func (c *Channel) handleErrRelayRecord() error {
+	var errPacketDetails []types.PacketDetail
+	packets, err := c.errRelay.GetErrRelay()
+	if err != nil {
+		return fmt.Errorf("GetErrRelay err:%+v", err)
+	}
+	for _, packet := range packets {
+		pkts, err := c.GetMsg(packet.FromHeight, packet.ToHeight)
+		if err != nil {
+			return fmt.Errorf("get msg err:%+v", err)
+		}
+		for _, pkt := range pkts {
+			res, err := c.RetryRelay(pkt)
+			if err != nil {
+				c.logger.Infof("RelayPackets result: %v , err : %v", res, err)
+				packetDetail := types.GetPacketDetail(pkt)
+				packetDetail.FromHeight = packet.FromHeight
+				packetDetail.ToHeight = packet.ToHeight
+				packetDetail.ChainName = c.chainA.ChainName()
+				errPacketDetails = append(errPacketDetails, packetDetail)
+				// Write Err relay details and
+				continue
+			}
+		}
+	}
+	if err := c.errRelay.WriteErrRelay(errPacketDetails, true); err != nil {
+		c.logger.Errorf("errRelay.WriteErrRelay error:%v", err.Error())
+	}
+    return nil
 }
 
 func (c *Channel) RetryRelay(pkt sdk.Msg) (res string, err error) {
