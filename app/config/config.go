@@ -145,6 +145,7 @@ type (
 
 	Cache struct {
 		Filename      string `toml:"filename"`
+		ErrFileName   string `toml:"err_file_name"`
 		StartHeight   uint64 `toml:"start_height"`
 		RevisedHeight uint64 `toml:"revised_height"`
 	}

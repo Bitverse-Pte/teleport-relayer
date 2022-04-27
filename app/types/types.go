@@ -52,6 +52,7 @@ type PacketDetail struct {
 	FromHeight uint64
 	ToHeight   uint64
 	Type       string
+	ErrMsg     string
 }
 
 func NewPacketDetail(chainName string, sequence uint64, srcChain string, destChain string, relayChain string, fromHeight uint64, toHeight uint64, Ty string) *PacketDetail {

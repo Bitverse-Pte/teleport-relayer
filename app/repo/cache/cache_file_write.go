@@ -67,39 +67,6 @@ func (w *CacheFileWriter) WriteErrRelay(packetDetails []types.PacketDetail, isCo
 	return nil
 }
 
-func (w *CacheFileWriter) WriteAllErrRelay(packetDetail []types.PacketDetail) error {
-	cacheDataWriteBytes, err := json.Marshal(&packetDetail)
-	if err != nil {
-		return err
-	}
-	cacheDir := path.Join(w.homeDir, w.cacheDir)
-	filename := path.Join(cacheDir, w.cacheFilename)
-	var file *os.File
-	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		// Create the home config folder
-		if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
-			// Create the home folder
-			if err = os.MkdirAll(cacheDir, os.ModePerm); err != nil {
-				return err
-			}
-		}
-		// Then create the file...
-		file, err = os.Create(filename)
-		if err != nil {
-			return err
-		}
-
-	} else {
-		file, err = os.OpenFile(filename, os.O_WRONLY|os.O_APPEND, 0666)
-		if err != nil {
-			return err
-		}
-	}
-	defer file.Close()
-	_, err = file.Write(cacheDataWriteBytes)
-	return err
-}
-
 func (w *CacheFileWriter) GetErrRelay() ([]types.PacketDetail, error) {
 	var packetDetails []types.PacketDetail
 	cacheDir := path.Join(w.homeDir, w.cacheDir)
@@ -129,23 +96,6 @@ func (w *CacheFileWriter) GetErrRelay() ([]types.PacketDetail, error) {
 	return packetDetails, nil
 }
 
-func (w *CacheFileWriter) GetAllErrRelay() ([]types.PacketDetail, error) {
-	var packetDetails []types.PacketDetail
-	cacheDir := path.Join(w.homeDir, w.cacheDir)
-	filename := path.Join(cacheDir, w.cacheFilename)
-	fmt.Println(filename)
-	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		return nil, err
-	}
-	packetDetailByte, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-	if err := json.Unmarshal(packetDetailByte, &packetDetails); err != nil {
-		return nil, err
-	}
-	return packetDetails, nil
-}
 
 func (w *CacheFileWriter) Write(height uint64) error {
 	cacheDataObj := &Data{}

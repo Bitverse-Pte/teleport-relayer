@@ -23,6 +23,7 @@ import (
 var _ IChannel = new(Channel)
 
 const DefaultBatchSize uint64 = 10
+const DefaultErrRelayFile = "errRelay"
 
 type IChannel interface {
 	RelayTask(s *gocron.Scheduler)
@@ -66,7 +67,11 @@ func NewChannel(
 ) {
 	var startHeight uint64
 	state := cache.NewCacheFileWriter(config.Home, config.DefaultCacheDirName, chainACfg.Cache.Filename)
-	errRelayCache := cache.NewCacheFileWriter(config.Home, config.DefaultCacheDirName, chainA.ChainName()+"errRelay")
+	errFileName := DefaultErrRelayFile
+	if chainACfg.Cache.ErrFileName != "" {
+		errFileName = chainACfg.Cache.ErrFileName
+	}
+	errRelayCache := cache.NewCacheFileWriter(config.Home, config.DefaultCacheDirName, chainA.ChainName()+errFileName)
 	stateData := state.LoadCache()
 	if chainA.ChainType() == types.Tendermint {
 		startHeight = chainACfg.Cache.StartHeight

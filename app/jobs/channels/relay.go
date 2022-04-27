@@ -245,6 +245,7 @@ func (c *Channel) RelayPackets(height uint64) error {
 			packetDetail.FromHeight = height
 			packetDetail.ToHeight = updateHeight
 			packetDetail.ChainName = c.chainA.ChainName()
+			packetDetail.ErrMsg = err.Error()
 			// Write Err relay details and
 			if err := c.errRelay.WriteErrRelay([]types.PacketDetail{packetDetail}, false); err != nil {
 				c.logger.Errorf("errRelay.WriteErrRelay error:%v", err.Error())
@@ -277,12 +278,14 @@ func (c *Channel) handleErrRelayRecord() error {
 				packetDetail.FromHeight = packet.FromHeight
 				packetDetail.ToHeight = packet.ToHeight
 				packetDetail.ChainName = c.chainA.ChainName()
+				packetDetail.ErrMsg = err.Error()
 				errPacketDetails = append(errPacketDetails, packetDetail)
 				// Write Err relay details and
 				continue
 			}
 		}
 	}
+	c.logger.Infoln("errPacketDetails:",errPacketDetails)
 	if err := c.errRelay.WriteErrRelay(errPacketDetails, true); err != nil {
 		c.logger.Errorf("errRelay.WriteErrRelay error:%v", err.Error())
 	}
