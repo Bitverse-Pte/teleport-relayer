@@ -70,8 +70,8 @@ func (c *Channel) UpdateClientByHeight(height uint64) error {
 	}
 	// update larger height
 	reqHeight := updateHeight
-	if updateHeight < chainAHeight {
-		reqHeight = chainAHeight
+	if updateHeight < chainAHeight-1 {
+		reqHeight = chainAHeight - 1
 	}
 	revisionNumber := clientState.GetLatestHeight().GetRevisionNumber()
 	var header exported.Header

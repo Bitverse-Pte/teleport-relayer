@@ -7,6 +7,8 @@ import (
 	"io"
 	"math/big"
 
+	clienttypes "github.com/teleport-network/teleport/x/xibc/core/client/types"
+
 	"github.com/cosmos/cosmos-sdk/codec"
 
 	"golang.org/x/crypto/sha3"
@@ -20,7 +22,6 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 
 	xibcbsc "github.com/teleport-network/teleport/x/xibc/clients/light-clients/bsc/types"
-	clienttypes "github.com/teleport-network/teleport/x/xibc/core/client/types"
 
 	"github.com/teleport-network/teleport-relayer/app/config"
 )

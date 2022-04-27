@@ -66,7 +66,7 @@ func NewChannel(
 ) {
 	var startHeight uint64
 	state := cache.NewCacheFileWriter(config.Home, config.DefaultCacheDirName, chainACfg.Cache.Filename)
-	errRelayCache := cache.NewCacheFileWriter(config.Home, config.DefaultCacheDirName, "errRelay")
+	errRelayCache := cache.NewCacheFileWriter(config.Home, config.DefaultCacheDirName, chainA.ChainName()+"errRelay")
 	stateData := state.LoadCache()
 	if chainA.ChainType() == types.Tendermint {
 		startHeight = chainACfg.Cache.StartHeight
@@ -156,6 +156,10 @@ func (c *Channel) UpgradeExtraWait(ctx *gin.Context) {
 	}
 	c.extraWait = extraWaitObj.ExtraWait
 	ctx.JSON(http.StatusOK, dto.Response{Code: dto.Success, Message: "success", Data: c.extraWait})
+}
+
+func (c *Channel) ErrRelay(ctx *gin.Context) {
+	// todo : get errRelay files and return by json
 }
 
 func (c *Channel) ManualRelayByHash(ctx *gin.Context) {

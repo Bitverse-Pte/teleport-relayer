@@ -58,6 +58,7 @@ func (a *App) Start() {
 	for chainName, channel := range a.channelMap {
 		a.logger.Printf("relay packet for %s\n", chainName)
 		channel.RelayTask(s)
+
 		r.POST(fmt.Sprintf("/relayer/%v/relay", chainName), channel.ManualRelayByHash)
 		r.PUT(fmt.Sprintf("/relayer/%v/height", chainName), channel.UpgradeRelayHeight)
 		r.GET(fmt.Sprintf("/relayer/%v/height", chainName), channel.ViewRelayHeight)

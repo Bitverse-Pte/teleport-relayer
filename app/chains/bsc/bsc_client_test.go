@@ -37,7 +37,7 @@ func TestNewBsc(t *testing.T) {
 func TestGetPackets(t *testing.T) {
 	bscClient := newBscClient(t)
 
-	packets, err := bscClient.GetPackets(18575930, 18575930, "")
+	packets, err := bscClient.GetPackets(18666603, 18666603, "")
 	require.NoError(t, err)
 	require.NotNil(t, packets.BizPackets)
 	var data transfertypes.FungibleTokenPacketData
@@ -68,7 +68,7 @@ func TestGetProofIndex(t *testing.T) {
 			host.PacketCommitmentKey("bsctest", "teleport", 1),
 			common.LeftPadBytes(big.NewInt(i).Bytes(), 32),
 		)
-		proof, err := bscClient.getProof(context.Background(), common.HexToAddress("0x2015c336b20960735acb5fdfa4fd5ae63bc740ed"), []string{hexutil.Encode(hash.Bytes())}, big.NewInt(18444946))
+		proof, err := bscClient.getProof(context.Background(), common.HexToAddress("0x6cc67656660827f9e4810ed3657b5fdab49a553d"), []string{hexutil.Encode(hash.Bytes())}, big.NewInt(18609747))
 		require.NoError(t, err)
 		if len(proof.StorageProof) > 1 || proof.StorageProof[0].Value.Uint64() > 0 {
 			t.Log(i)
@@ -80,11 +80,11 @@ func newBscClient(t *testing.T) *Bsc {
 	optPrivKey := "FB0536CF27B7F16EAB7F8BBD1771980E83ECE69F50BE30A7161D7E643645958D"
 
 	contractCfgGroup := NewContractCfgGroup()
-	contractCfgGroup.Packet.Addr = "0xd453996ee59d7c19c4457ea9e3602f13cc3017e3"
+	contractCfgGroup.Packet.Addr = "0x6cc67656660827f9e4810ed3657b5fdab49a553d"
 	contractCfgGroup.Packet.Topic = "PacketSent((uint64,string,string,string,string[],bytes[]))"
 	contractCfgGroup.Packet.OptPrivKey = optPrivKey
 
-	contractCfgGroup.AckPacket.Addr = "0xd453996ee59d7c19c4457ea9e3602f13cc3017e3"
+	contractCfgGroup.AckPacket.Addr = "0x6cc67656660827f9e4810ed3657b5fdab49a553d"
 	contractCfgGroup.AckPacket.Topic = "AckWritten((uint64,string,string,string,string[],bytes[]),bytes)"
 	contractCfgGroup.AckPacket.OptPrivKey = optPrivKey
 
