@@ -171,8 +171,8 @@ func (c *Channel) RelayTask(s *gocron.Scheduler) {
 }
 
 func (c *Channel) RelayPackets(height uint64) error {
-	if err :=c.handleErrRelayRecord();err != nil {
-		c.logger.Errorf("handleErrRelayRecord error:%+v",err)
+	if err := c.handleErrRelayRecord(); err != nil {
+		c.logger.Errorf("handleErrRelayRecord error:%+v", err)
 	}
 	now := time.Now()
 	c.logger.Infoln("startRelay ...", now)
@@ -285,11 +285,11 @@ func (c *Channel) handleErrRelayRecord() error {
 			}
 		}
 	}
-	c.logger.Infoln("errPacketDetails:",errPacketDetails)
+	c.logger.Infoln("errPacketDetails:", errPacketDetails)
 	if err := c.errRelay.WriteErrRelay(errPacketDetails, true); err != nil {
 		c.logger.Errorf("errRelay.WriteErrRelay error:%v", err.Error())
 	}
-    return nil
+	return nil
 }
 
 func (c *Channel) RetryRelay(pkt sdk.Msg) (res string, err error) {

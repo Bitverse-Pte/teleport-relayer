@@ -2,10 +2,11 @@ package cache
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/teleport-network/teleport-relayer/app/types"
 )
@@ -38,7 +39,7 @@ func TestCacheFileWriter_Write(t *testing.T) {
 		SrcChain:  "rinkeby",
 		DestChain: "teleport",
 	})
-	writer.WriteErrRelay(pts,true)
+	writer.WriteErrRelay(pts, true)
 }
 
 func TestCacheFileWriter_Read(t *testing.T) {

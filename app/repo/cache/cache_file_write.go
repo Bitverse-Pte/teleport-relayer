@@ -4,11 +4,12 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/teleport-network/teleport-relayer/app/types"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
+
+	"github.com/teleport-network/teleport-relayer/app/types"
 )
 
 type CacheFileWriter struct {
@@ -54,7 +55,7 @@ func (w *CacheFileWriter) WriteErrRelay(packetDetails []types.PacketDetail, isCo
 	}
 	defer file.Close()
 	write := bufio.NewWriter(file)
-	for _,packetDetail := range packetDetails{
+	for _, packetDetail := range packetDetails {
 		cacheDataWriteBytes, err := json.Marshal(&packetDetail)
 		if err != nil {
 			return err
@@ -71,15 +72,18 @@ func (w *CacheFileWriter) GetErrRelay() ([]types.PacketDetail, error) {
 	var packetDetails []types.PacketDetail
 	cacheDir := path.Join(w.homeDir, w.cacheDir)
 	filename := path.Join(cacheDir, w.cacheFilename)
-	if _, err := os.Stat(filename); os.IsNotExist(err) {
+	var file *os.File
+	if _, err := os.Stat(filename); err != nil && os.IsNotExist(err) {
+		return nil, nil
+	} else if err != nil {
 		return nil, err
 	}
-	f, err := os.Open(filename)
+	file, err := os.Open(filename)
 	if err != nil {
 		panic(err)
 	}
-	defer f.Close()
-	rd := bufio.NewReader(f)
+	defer file.Close()
+	rd := bufio.NewReader(file)
 	for {
 		line, err := rd.ReadString('\n')
 		if err != nil || io.EOF == err {
@@ -95,7 +99,6 @@ func (w *CacheFileWriter) GetErrRelay() ([]types.PacketDetail, error) {
 	}
 	return packetDetails, nil
 }
-
 
 func (w *CacheFileWriter) Write(height uint64) error {
 	cacheDataObj := &Data{}

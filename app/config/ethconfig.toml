@@ -16,6 +16,7 @@
     [Chain.Dest.Cache]
       filename = "destdata"
       start_height = 11663428
+      err_file_name = "desterrfile"
 
     [Chain.Dest.Eth]
       chain_id = 3
@@ -69,6 +70,7 @@
     [Chain.Source.Cache]
       filename = "sourcedata"
       start_height = 10
+      err_file_name = "sourceerrfile"
 
     [Chain.Source.Tendermint]
       chain_id = "teleport_8544154630257-1"

@@ -3,7 +3,9 @@
   channel_types = ["tendermint_and_bsc"]
   Env = "dev"
   log_level = "debug"
- 
+  bridge_status_api = "https://bridge.qa.davionlabs.com/bridge/bridge_status"
+   bridge_enable = false
+
 [log]
   log_file_name = "teleport-relayer"
   logmax_age = 365
@@ -54,15 +56,16 @@
       Filename = "sourcedata"
       start_height = 23647
 
-
     [Chain.Source.Tendermint]
-      Chain_id = "teleport_7001-1"
-      Chain_name = "teleport"
-      Clean_packet_enabled = true
-      Gas = 0
-      grpc_addr = "10.41.20.10:9090"
-      request_timeout = 100
-      update_client_frequency = 1
+        chain_id = "teleport_7001-1"
+        chain_name = "teleport"
+        gas_limit = 5000000
+        gas_price = "5000000000atele"
+        grpc_addr = ""
+        simulation_addr = ""
+        request_timeout = 100
+        update_client_frequency = 1
+        query_filter = ""
 
       [Chain.Source.Tendermint.Fee]
         Amount = 0
