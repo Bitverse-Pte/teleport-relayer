@@ -490,6 +490,10 @@ func (c *Tendermint) GetLightClientDelayHeight(chainName string) (uint64, error)
 	if err != nil {
 		return 0, err
 	}
+	if res.ClientType() == exported.BSC {
+		m := res.(*xibcbsc.ClientState)
+		return uint64(len(m.Validators)*2/3 + 1), nil
+	}
 	//return res.GetDelayBlock(), nil
 	return res.GetDelayBlock(), nil
 }
