@@ -13,10 +13,10 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rpc"
 
+	"github.com/teleport-network/teleport-relayer/app/types"
+	rcctypes "github.com/teleport-network/teleport/x/xibc/apps/rcc/types"
 	transfertypes "github.com/teleport-network/teleport/x/xibc/apps/transfer/types"
 	"github.com/teleport-network/teleport/x/xibc/core/host"
-
-	"github.com/teleport-network/teleport-relayer/app/types"
 )
 
 const (
@@ -36,14 +36,38 @@ func TestNewBsc(t *testing.T) {
 
 func TestGetPackets(t *testing.T) {
 	bscClient := newBscClient(t)
+	fromHeight := uint64(19316505)
+	toHeight := uint64(19316555)
+	for i := fromHeight; i <= toHeight; i++ {
+		packets, err := bscClient.GetPackets(i, i, "")
+		require.NoError(t, err)
+		if len(packets.BizPackets) != 0 {
+			fmt.Println(i)
+		}
+	}
 
-	packets, err := bscClient.GetPackets(18666603, 18666603, "")
+	packets, err := bscClient.GetPackets(fromHeight, toHeight, "")
 	require.NoError(t, err)
 	require.NotNil(t, packets.BizPackets)
-	var data transfertypes.FungibleTokenPacketData
-	err = data.DecodeBytes(packets.BizPackets[0].DataList[0])
-	require.NoError(t, err)
-	require.NotNil(t, data)
+
+	for k, v := range packets.BizPackets[0].Ports {
+		if v == "FT" {
+			t.Log("Trasnfer packet")
+			var data transfertypes.FungibleTokenPacketData
+			err = data.DecodeBytes(packets.BizPackets[0].DataList[k])
+			require.NoError(t, err)
+			require.NotNil(t, data)
+			t.Log(data.String())
+		} else {
+			t.Log("RCC packet")
+			var rccData rcctypes.RCCPacketData
+			err = rccData.DecodeBytes(packets.BizPackets[0].DataList[0])
+			require.NoError(t, err)
+			require.NotNil(t, rccData)
+			t.Log(rccData.String())
+		}
+	}
+
 }
 
 func TestGetPacketByHash(t *testing.T) {
@@ -80,11 +104,11 @@ func newBscClient(t *testing.T) *Bsc {
 	optPrivKey := "FB0536CF27B7F16EAB7F8BBD1771980E83ECE69F50BE30A7161D7E643645958D"
 
 	contractCfgGroup := NewContractCfgGroup()
-	contractCfgGroup.Packet.Addr = "0x6cc67656660827f9e4810ed3657b5fdab49a553d"
+	contractCfgGroup.Packet.Addr = "0xc8685bbdac12471ca895f3fb200da600e379cbe4"
 	contractCfgGroup.Packet.Topic = "PacketSent((uint64,string,string,string,string[],bytes[]))"
 	contractCfgGroup.Packet.OptPrivKey = optPrivKey
 
-	contractCfgGroup.AckPacket.Addr = "0x6cc67656660827f9e4810ed3657b5fdab49a553d"
+	contractCfgGroup.AckPacket.Addr = "0xc8685bbdac12471ca895f3fb200da600e379cbe4"
 	contractCfgGroup.AckPacket.Topic = "AckWritten((uint64,string,string,string,string[],bytes[]),bytes)"
 	contractCfgGroup.AckPacket.OptPrivKey = optPrivKey
 

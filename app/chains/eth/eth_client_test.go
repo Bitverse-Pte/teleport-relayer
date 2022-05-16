@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	rcctypes "github.com/teleport-network/teleport/x/xibc/apps/rcc/types"
+
 	"github.com/stretchr/testify/require"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -136,13 +138,38 @@ func TestMakeBytes(t *testing.T) {
 
 func TestGetPacket(t *testing.T) {
 	client := getEth(t)
-	packets, err := client.GetPackets(10310394, 10310394, "")
+	fromHeight := uint64(19316505)
+	toHeight := uint64(19316555)
+
+	for i := fromHeight; i <= toHeight; i++ {
+		packets, err := client.GetPackets(i, i, "")
+		require.NoError(t, err)
+		if len(packets.BizPackets) != 0 {
+			fmt.Println(i)
+		}
+	}
+
+	packets, err := client.GetPackets(fromHeight, toHeight, "")
 	require.NoError(t, err)
 	require.NotNil(t, packets.BizPackets)
-	var data transfertypes.FungibleTokenPacketData
-	err = data.DecodeBytes(packets.BizPackets[0].DataList[0])
-	require.NoError(t, err)
-	fmt.Println(data.String())
+
+	for k, v := range packets.BizPackets[0].Ports {
+		if v == "FT" {
+			t.Log("Trasnfer packet")
+			var data transfertypes.FungibleTokenPacketData
+			err = data.DecodeBytes(packets.BizPackets[0].DataList[k])
+			require.NoError(t, err)
+			require.NotNil(t, data)
+			t.Log(data.String())
+		} else {
+			t.Log("RCC packet")
+			var rccData rcctypes.RCCPacketData
+			err = rccData.DecodeBytes(packets.BizPackets[0].DataList[0])
+			require.NoError(t, err)
+			require.NotNil(t, rccData)
+			t.Log(rccData.String())
+		}
+	}
 }
 
 func TestGetPacketByHash(t *testing.T) {
