@@ -162,6 +162,7 @@ require (
 )
 
 replace (
+	//github.com/teleport-network/teleport-sdk-go => /Users/sh00031ml/yjc/work/teleport/teleport-sdk-go
 	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.44.6-0.20220104141845-0be9863cfed1
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2

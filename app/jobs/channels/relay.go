@@ -2,6 +2,7 @@ package channels
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -196,28 +197,28 @@ func (c *Channel) RelayPackets(height uint64) error {
 		verifyHeight = chainAHeight
 	}
 	if height+delayHeight+50 < verifyHeight {
-		c.logger.Infof("get packet fromBlock:%v,toBlock:%v", height, height+9)
+		c.logger.Infof("get packet fromBlock:%v,toBlock:%v", height, height+delayHeight+49)
 		pkts, err = c.GetMsg(height, height+49)
 		if err != nil {
 			return fmt.Errorf("batchGetMsg error:%+v", err)
 		}
 		updateHeight += 50
 	} else if height+delayHeight+c.batchSize < verifyHeight {
-		c.logger.Infof("get packet fromBlock:%v,toBlock:%v", height, height+9)
+		c.logger.Infof("get packet fromBlock:%v,toBlock:%v", height, height+c.batchSize-1)
 		pkts, err = c.GetMsg(height, height+c.batchSize-1)
 		if err != nil {
 			return fmt.Errorf("batchGetMsg error:%+v", err)
 		}
 		updateHeight += c.batchSize
 	} else if height+delayHeight < verifyHeight {
-		c.logger.Infof("get packet fromBlock:%v,toBlock:%v", height, height)
+		c.logger.Infof("get packet fromBlock:%v,toBlock:%v", height, verifyHeight-delayHeight-1)
 		pkts, err = c.GetMsg(height, verifyHeight-delayHeight-1)
 		if err != nil {
 			return fmt.Errorf("get msg err:%+v", err)
 		}
 		updateHeight += verifyHeight - delayHeight - height
 	} else {
-		time.Sleep(10 * time.Second)
+		time.Sleep(5 * time.Second)
 		return fmt.Errorf("height + delayHeight >= verifyHeight")
 	}
 	if len(pkts) == 0 {
@@ -260,6 +261,7 @@ func (c *Channel) RelayPackets(height uint64) error {
 }
 
 func (c *Channel) handleErrRelayRecord() error {
+	c.logger.Infoln("Handle ErrRelay Record ")
 	var errPacketDetails []types.PacketDetail
 	packets, err := c.errRelay.GetErrRelay()
 	if err != nil {
@@ -293,12 +295,22 @@ func (c *Channel) handleErrRelayRecord() error {
 }
 
 func (c *Channel) RetryRelay(pkt sdk.Msg) (res string, err error) {
+	//count := 0
 	for i := 0; i < types.RetryTimes; i++ {
 		res, err = c.chainB.RelayPackets(pkt)
 		if err != nil {
 			// check if packet already relayed
 			if handleRecvPacketsError(err) {
 				return res, nil
+			}
+			if strings.Contains(err.Error(), "account sequence mismatch") {
+				//if count > 6 {
+				//	continue
+				//}
+				i = 0
+				//count++
+				c.logger.Infoln("sequence mismatch relayer will retry , relay height at ", c.relayHeight)
+				continue
 			}
 			continue
 		}

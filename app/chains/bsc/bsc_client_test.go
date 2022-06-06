@@ -36,8 +36,10 @@ func TestNewBsc(t *testing.T) {
 
 func TestGetPackets(t *testing.T) {
 	bscClient := newBscClient(t)
+
 	fromHeight := uint64(19316505)
 	toHeight := uint64(19316555)
+
 	for i := fromHeight; i <= toHeight; i++ {
 		packets, err := bscClient.GetPackets(i, i, "")
 		require.NoError(t, err)
@@ -72,7 +74,7 @@ func TestGetPackets(t *testing.T) {
 
 func TestGetPacketByHash(t *testing.T) {
 	client := newBscClient(t)
-	packets, err := client.GetPacketsByHash("0x7755e0105e5cd796cced4dca65bd11cb9c11160eaab08348cf56f746a28394c1")
+	packets, err := client.GetPacketsByHash("0xada2706af3fdf3e124c6d385e5bdb2ee044109f36d39ee68c1c8af3ef5274bc1")
 	require.NoError(t, err)
 	require.NotNil(t, packets.BizPackets)
 	var data transfertypes.FungibleTokenPacketData

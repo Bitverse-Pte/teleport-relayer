@@ -99,7 +99,7 @@ func (c *Channel) GetMsg(fromBlock, toBlock uint64) ([]sdk.Msg, error) {
 			return nil, err
 		}
 		if isNotReceipt {
-			c.logger.Printf("packet has been received,sourchain:%v,destchain:%v,sequence:%v", pack.Packet.SourceChain, pack.Packet.DestinationChain, pack.Packet.Sequence)
+			c.logger.Printf("ack has been received,sourchain:%v,destchain:%v,sequence:%v", pack.Packet.SourceChain, pack.Packet.DestinationChain, pack.Packet.Sequence)
 			continue
 		}
 		// query proof

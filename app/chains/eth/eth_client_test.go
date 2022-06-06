@@ -138,8 +138,9 @@ func TestMakeBytes(t *testing.T) {
 
 func TestGetPacket(t *testing.T) {
 	client := getEth(t)
-	fromHeight := uint64(19316505)
-	toHeight := uint64(19316555)
+
+	fromHeight := uint64(10691113)
+	toHeight := uint64(10691113)
 
 	for i := fromHeight; i <= toHeight; i++ {
 		packets, err := client.GetPackets(i, i, "")
@@ -174,7 +175,7 @@ func TestGetPacket(t *testing.T) {
 
 func TestGetPacketByHash(t *testing.T) {
 	client := getEth(t)
-	packets, err := client.GetPacketsByHash("")
+	packets, err := client.GetPacketsByHash("0x5d0358275d975ae976872c873b64688c9f8094515f25093a7f6c524e84709557")
 	require.NoError(t, err)
 	require.NotNil(t, packets.BizPackets)
 	var data transfertypes.FungibleTokenPacketData
@@ -187,11 +188,11 @@ func getEth(t *testing.T) *Eth {
 	optPrivKey := "d10f695d6cbe3d12808a23ba10b5d1fc407dbe0caabb18935e02aedcec8b358b"
 
 	contractCfgGroup := NewContractCfgGroup()
-	contractCfgGroup.Packet.Addr = "0xfb75fdc26b66127b491147628a3bd66afb556789"
+	contractCfgGroup.Packet.Addr = "0x6c034eb404cb960cd51bf2570f8a71d61f1f39e7"
 	contractCfgGroup.Packet.Topic = "PacketSent((uint64,string,string,string,string[],bytes[]))"
 	contractCfgGroup.Packet.OptPrivKey = optPrivKey
 
-	contractCfgGroup.AckPacket.Addr = "0xfb75fdc26b66127b491147628a3bd66afb556789"
+	contractCfgGroup.AckPacket.Addr = "0x6c034eb404cb960cd51bf2570f8a71d61f1f39e7"
 	contractCfgGroup.AckPacket.Topic = "AckWritten((uint64,string,string,string,string[],bytes[]),bytes)"
 	contractCfgGroup.AckPacket.OptPrivKey = optPrivKey
 
