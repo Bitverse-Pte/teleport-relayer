@@ -4,15 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cosmos/cosmos-sdk/codec"
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/tx"
-	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 
-	xibceth "github.com/teleport-network/teleport/x/xibc/clients/light-clients/eth/types"
-	xibctendermint "github.com/teleport-network/teleport/x/xibc/clients/light-clients/tendermint/types"
 	clienttypes "github.com/teleport-network/teleport/x/xibc/core/client/types"
 	packettypes "github.com/teleport-network/teleport/x/xibc/core/packet/types"
 
@@ -38,42 +31,46 @@ func (c *Channel) GetMsg(fromBlock, toBlock uint64) ([]sdk.Msg, error) {
 	if len(packets.BizPackets) != 0 {
 		c.logger.Printf("has queried packet number:%v", len(packets.BizPackets))
 		for _, p := range packets.BizPackets {
-			c.logger.Printf("packet detail:%v,%v,%v\n", p.SourceChain, p.DestinationChain, p.Sequence)
+			c.logger.Printf("packet detail:%v,%v,%v\n", p.SrcChain, p.DstChain, p.Sequence)
 		}
 
 	}
 	if len(packets.AckPackets) != 0 {
 		c.logger.Printf("has queried ack number:%v", len(packets.AckPackets))
 		for _, p := range packets.AckPackets {
-			c.logger.Printf("packet detail:%v,%v,%v\n", p.Packet.SourceChain, p.Packet.DestinationChain, p.Packet.Sequence)
+			c.logger.Printf("packet detail:%v,%v,%v\n", p.Packet.SrcChain, p.Packet.DstChain, p.Packet.Sequence)
 		}
 	}
 
 	for _, pack := range packets.BizPackets {
-		if pack.SourceChain == c.chainB.ChainName() || (pack.DestinationChain != c.chainB.ChainName() && pack.RelayChain != c.chainB.ChainName()) {
+		if pack.SrcChain == c.chainB.ChainName() {
 			continue
 		}
-		if err := c.chainA.GetCommitmentsPacket(pack.SourceChain, pack.DestinationChain, pack.Sequence); err != nil {
+		if err := c.chainA.GetCommitmentsPacket(pack.SrcChain, pack.DstChain, pack.Sequence); err != nil {
 			if strings.Contains(err.Error(), "connection") {
 				return nil, err
 			}
 			continue
 		}
 		// skip receipted
-		isNotReceipt, err := c.chainB.GetReceiptPacket(pack.SourceChain, pack.DestinationChain, pack.Sequence)
+		isNotReceipt, err := c.chainB.GetReceiptPacket(pack.SrcChain, pack.DstChain, pack.Sequence)
 		if err != nil {
 			return nil, err
 		}
 		if isNotReceipt {
-			c.logger.Printf("packet has been received,sourchain:%v,destchain:%v,sequence:%v", pack.SourceChain, pack.DestinationChain, pack.Sequence)
+			c.logger.Printf("packet has been received,sourchain:%v,destchain:%v,sequence:%v", pack.SrcChain, pack.DstChain, pack.Sequence)
 			continue
 		}
-		proof, err := c.chainA.GetProof(pack.SourceChain, pack.DestinationChain, pack.Sequence, proofHeight, types.CommitmentPoof)
+		proof, err := c.chainA.GetProof(pack.SrcChain, pack.DstChain, pack.Sequence, proofHeight, types.CommitmentPoof)
+		if err != nil {
+			return nil, errors.ErrGetProof
+		}
+		pac, err := pack.ABIPack()
 		if err != nil {
 			return nil, errors.ErrGetProof
 		}
 		recvPacket := &packettypes.MsgRecvPacket{
-			Packet:          pack,
+			Packet:          pac,
 			ProofCommitment: proof,
 			ProofHeight: clienttypes.Height{
 				RevisionNumber: clientState.GetLatestHeight().GetRevisionNumber(),
@@ -84,8 +81,8 @@ func (c *Channel) GetMsg(fromBlock, toBlock uint64) ([]sdk.Msg, error) {
 	}
 	for _, pack := range packets.AckPackets {
 		if err := c.chainB.GetCommitmentsPacket(
-			pack.Packet.SourceChain,
-			pack.Packet.DestinationChain,
+			pack.Packet.SrcChain,
+			pack.Packet.DstChain,
 			pack.Packet.Sequence,
 		); err != nil {
 			if strings.Contains(err.Error(), "connection") {
@@ -94,18 +91,18 @@ func (c *Channel) GetMsg(fromBlock, toBlock uint64) ([]sdk.Msg, error) {
 			continue
 		}
 		// skip receipted
-		isNotReceipt, err := c.chainB.GetReceiptPacket(pack.Packet.SourceChain, pack.Packet.DestinationChain, pack.Packet.Sequence)
+		isNotReceipt, err := c.chainB.GetReceiptPacket(pack.Packet.SrcChain, pack.Packet.DstChain, pack.Packet.Sequence)
 		if err != nil {
 			return nil, err
 		}
 		if isNotReceipt {
-			c.logger.Printf("ack has been received,sourchain:%v,destchain:%v,sequence:%v", pack.Packet.SourceChain, pack.Packet.DestinationChain, pack.Packet.Sequence)
+			c.logger.Printf("ack has been received,sourchain:%v,destchain:%v,sequence:%v", pack.Packet.SrcChain, pack.Packet.DstChain, pack.Packet.Sequence)
 			continue
 		}
 		// query proof
 		proof, err := c.chainA.GetProof(
-			pack.Packet.SourceChain,
-			pack.Packet.DestinationChain,
+			pack.Packet.SrcChain,
+			pack.Packet.DstChain,
 			pack.Packet.Sequence,
 			proofHeight,
 			types.AckProof,
@@ -113,8 +110,12 @@ func (c *Channel) GetMsg(fromBlock, toBlock uint64) ([]sdk.Msg, error) {
 		if err != nil {
 			return nil, errors.ErrGetProof
 		}
+		packetBytes, err := pack.Packet.ABIPack()
+		if err != nil {
+			return nil, err
+		}
 		recvPacket := &packettypes.MsgAcknowledgement{
-			Packet:          pack.Packet,
+			Packet:          packetBytes,
 			Acknowledgement: pack.Acknowledgement,
 			ProofAcked:      proof,
 			ProofHeight: clienttypes.Height{
@@ -145,42 +146,46 @@ func (c *Channel) GetMsgByHash(hash string) ([]sdk.Msg, error) {
 	if len(packets.BizPackets) != 0 {
 		c.logger.Printf("has queried packet number:%v", len(packets.BizPackets))
 		for _, p := range packets.BizPackets {
-			c.logger.Printf("packet detail:%v,%v,%v\n", p.SourceChain, p.DestinationChain, p.Sequence)
+			c.logger.Printf("packet detail:%v,%v,%v\n", p.SrcChain, p.DstChain, p.Sequence)
 		}
 
 	}
 	if len(packets.AckPackets) != 0 {
 		c.logger.Printf("has queried ack number:%v", len(packets.AckPackets))
 		for _, p := range packets.AckPackets {
-			c.logger.Printf("packet detail:%v,%v,%v\n", p.Packet.SourceChain, p.Packet.DestinationChain, p.Packet.Sequence)
+			c.logger.Printf("packet detail:%v,%v,%v\n", p.Packet.SrcChain, p.Packet.DstChain, p.Packet.Sequence)
 		}
 	}
 
 	for _, pack := range packets.BizPackets {
-		if pack.SourceChain == c.chainB.ChainName() || (pack.DestinationChain != c.chainB.ChainName() && pack.RelayChain != c.chainB.ChainName()) {
+		if pack.SrcChain == c.chainB.ChainName() {
 			continue
 		}
-		if err := c.chainA.GetCommitmentsPacket(pack.SourceChain, pack.DestinationChain, pack.Sequence); err != nil {
+		if err := c.chainA.GetCommitmentsPacket(pack.SrcChain, pack.DstChain, pack.Sequence); err != nil {
 			if strings.Contains(err.Error(), "connection") {
 				return nil, err
 			}
 			continue
 		}
 		// skip receipted
-		isNotReceipt, err := c.chainB.GetReceiptPacket(pack.SourceChain, pack.DestinationChain, pack.Sequence)
+		isNotReceipt, err := c.chainB.GetReceiptPacket(pack.SrcChain, pack.DstChain, pack.Sequence)
 		if err != nil {
 			return nil, err
 		}
 		if isNotReceipt {
-			c.logger.Printf("packet has been received,sourchain:%v,destchain:%v,sequence:%v", pack.SourceChain, pack.DestinationChain, pack.Sequence)
+			c.logger.Printf("packet has been received,sourchain:%v,destchain:%v,sequence:%v", pack.SrcChain, pack.DstChain, pack.Sequence)
 			continue
 		}
-		proof, err := c.chainA.GetProof(pack.SourceChain, pack.DestinationChain, pack.Sequence, proofHeight, types.CommitmentPoof)
+		proof, err := c.chainA.GetProof(pack.SrcChain, pack.DstChain, pack.Sequence, proofHeight, types.CommitmentPoof)
+		if err != nil {
+			return nil, errors.ErrGetProof
+		}
+		packet, err := pack.ABIPack()
 		if err != nil {
 			return nil, errors.ErrGetProof
 		}
 		recvPacket := &packettypes.MsgRecvPacket{
-			Packet:          pack,
+			Packet:          packet,
 			ProofCommitment: proof,
 			ProofHeight: clienttypes.Height{
 				RevisionNumber: clientState.GetLatestHeight().GetRevisionNumber(),
@@ -191,8 +196,8 @@ func (c *Channel) GetMsgByHash(hash string) ([]sdk.Msg, error) {
 	}
 	for _, pack := range packets.AckPackets {
 		if err := c.chainB.GetCommitmentsPacket(
-			pack.Packet.SourceChain,
-			pack.Packet.DestinationChain,
+			pack.Packet.SrcChain,
+			pack.Packet.DstChain,
 			pack.Packet.Sequence,
 		); err != nil {
 			if strings.Contains(err.Error(), "connection") {
@@ -201,18 +206,18 @@ func (c *Channel) GetMsgByHash(hash string) ([]sdk.Msg, error) {
 			continue
 		}
 		// skip receipted
-		isNotReceipt, err := c.chainB.GetReceiptPacket(pack.Packet.SourceChain, pack.Packet.DestinationChain, pack.Packet.Sequence)
+		isNotReceipt, err := c.chainB.GetReceiptPacket(pack.Packet.SrcChain, pack.Packet.DstChain, pack.Packet.Sequence)
 		if err != nil {
 			return nil, err
 		}
 		if isNotReceipt {
-			c.logger.Printf("packet has been received,sourchain:%v,destchain:%v,sequence:%v", pack.Packet.SourceChain, pack.Packet.DestinationChain, pack.Packet.Sequence)
+			c.logger.Printf("packet has been received,sourchain:%v,destchain:%v,sequence:%v", pack.Packet.SrcChain, pack.Packet.DstChain, pack.Packet.Sequence)
 			continue
 		}
 		// query proof
 		proof, err := c.chainA.GetProof(
-			pack.Packet.SourceChain,
-			pack.Packet.DestinationChain,
+			pack.Packet.SrcChain,
+			pack.Packet.DstChain,
 			pack.Packet.Sequence,
 			proofHeight,
 			types.AckProof,
@@ -220,8 +225,12 @@ func (c *Channel) GetMsgByHash(hash string) ([]sdk.Msg, error) {
 		if err != nil {
 			return nil, errors.ErrGetProof
 		}
+		packet, err := pack.Packet.ABIPack()
+		if err != nil {
+			return nil, errors.ErrGetProof
+		}
 		recvPacket := &packettypes.MsgAcknowledgement{
-			Packet:          pack.Packet,
+			Packet:          packet,
 			Acknowledgement: pack.Acknowledgement,
 			ProofAcked:      proof,
 			ProofHeight: clienttypes.Height{
@@ -234,21 +243,9 @@ func (c *Channel) GetMsgByHash(hash string) ([]sdk.Msg, error) {
 	return relayPackets, nil
 }
 
-func (c *Channel) filterPacket(packet *packettypes.Packet) bool {
-	return (packet.SourceChain != c.chainA.ChainName() && packet.RelayChain != c.chainA.ChainName()) ||
-		(packet.DestinationChain != c.chainB.ChainName() && packet.RelayChain != c.chainB.ChainName()) ||
-		!(packet.RelayChain == c.chainA.ChainName() && packet.RelayChain == c.chainB.ChainName())
-}
-
-func makeCodec() *codec.ProtoCodec {
-	ir := codectypes.NewInterfaceRegistry()
-	clienttypes.RegisterInterfaces(ir)
-	govtypes.RegisterInterfaces(ir)
-	xibctendermint.RegisterInterfaces(ir)
-	xibceth.RegisterInterfaces(ir)
-	packettypes.RegisterInterfaces(ir)
-	ir.RegisterInterface("cosmos.v1beta1.Msg", (*sdk.Msg)(nil))
-	tx.RegisterInterfaces(ir)
-	cryptocodec.RegisterInterfaces(ir)
-	return codec.NewProtoCodec(ir)
-}
+//
+//func (c *Channel) filterPacket(packet *packettypes.Packet) bool {
+//	return (packet.SrcChain != c.chainA.ChainName() && packet.RelayChain != c.chainA.ChainName()) ||
+//		(packet.DstChain != c.chainB.ChainName() && packet.RelayChain != c.chainB.ChainName()) ||
+//		!(packet.RelayChain == c.chainA.ChainName() && packet.RelayChain == c.chainB.ChainName())
+//}

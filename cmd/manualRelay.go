@@ -21,11 +21,11 @@ func manualRelay() error {
 	a := app.NewApp()
 	var detail *types.PacketDetail
 	if Hash == "" {
-		detail = types.NewPacketDetail(ChainName, Sequence, SrcChain, DestChain, RelayChain, FromHeight, ToHeight, "")
+		detail = types.NewPacketDetail(ChainName, Sequence, SrcChain, DestChain, FromHeight, ToHeight, "", "")
 	} else {
-		detail = types.NewPacketDetail(ChainName, 0, "", "", "", 0, 0, "")
+		detail = types.NewPacketDetail(ChainName, 0, "", "", 0, 0, Hash, "")
 	}
-	err := a.ManualRelay(detail, Hash)
+	err := a.ManualRelay(detail)
 	if err != nil {
 		return err
 	}

@@ -122,7 +122,7 @@ func (a *App) EvmClientSync() {
 	s.StartBlocking()
 }
 
-func (a *App) ManualRelay(detail *types.PacketDetail, hash string) error {
+func (a *App) ManualRelay(detail *types.PacketDetail) error {
 	var channel channels.IChannel
 	if a.channelMap[detail.ChainName] != nil {
 		// as src chain
@@ -130,7 +130,7 @@ func (a *App) ManualRelay(detail *types.PacketDetail, hash string) error {
 	} else {
 		return errors.New(fmt.Sprintf("can not find chain %s in channel", detail.ChainName))
 	}
-	err := channel.ManualRelay(detail, hash)
+	err := channel.ManualRelay(detail)
 	if err != nil {
 		return err
 	}

@@ -33,7 +33,7 @@ type IChannel interface {
 	UpgradeExtraWait(ctx *gin.Context)
 	ViewExtraWait(ctx *gin.Context)
 	ManualRelayByHash(ctx *gin.Context)
-	ManualRelay(detail *types.PacketDetail, hash string) error
+	ManualRelay(detail *types.PacketDetail) error
 }
 
 type Channel struct {

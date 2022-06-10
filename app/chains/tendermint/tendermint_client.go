@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/rand"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -246,17 +245,6 @@ func GetStatus(ack []byte) PacketStatus {
 
 func (c *Tendermint) GetPacketDataList(port uint64, data []byte) interface{} {
 	return nil
-}
-
-// TODO
-type CrossChainPacket struct {
-	Commitment string
-	Packet     string
-	AckPacket  string
-	Height     uint64
-	TxHash     string
-	Sender     string
-	Status     string
 }
 
 type PacketStatus int8
@@ -604,11 +592,10 @@ func (c *Tendermint) BatchUpdateClient(headers []exported.Header, chainName stri
 }
 
 func (c *Tendermint) GetCommitmentsPacket(sourceChainName, destChainName string, sequence uint64) error {
-	//_, err := c.TeleportSDK.PacketCommitment(destChainName, sourceChainName, sequence)
 	_, err := c.TeleportSDK.XIBCPacketQuery.PacketCommitment(context.Background(), &packettypes.QueryPacketCommitmentRequest{
-		SourceChain: sourceChainName,
-		DestChain:   destChainName,
-		Sequence:    sequence,
+		SrcChain: sourceChainName,
+		DstChain: destChainName,
+		Sequence: sequence,
 	})
 	if err != nil {
 		return err
@@ -617,11 +604,10 @@ func (c *Tendermint) GetCommitmentsPacket(sourceChainName, destChainName string,
 }
 
 func (c *Tendermint) GetReceiptPacket(sourChainName, destChianName string, sequence uint64) (bool, error) {
-	//result, err := c.TeleportSDK.PacketReceipt(destChianName, sourChainName, sequence)
 	result, err := c.TeleportSDK.XIBCPacketQuery.PacketReceipt(context.Background(), &packettypes.QueryPacketReceiptRequest{
-		SourceChain: sourChainName,
-		DestChain:   destChianName,
-		Sequence:    sequence,
+		SrcChain: sourChainName,
+		DstChain: destChianName,
+		Sequence: sequence,
 	})
 	if err != nil {
 		return false, err
@@ -743,21 +729,10 @@ func (c *Tendermint) getCrossChainPackets(stringEvents sdk.StringEvents, destCha
 		if !ok {
 			// TODO
 		}
-		// if event.SrcChain == c.ChainName() || (event.DstChain != c.ChainName() && event.RelayChain != c.ChainName()) {
-		//	continue // TODO
-		// }
-		sequence, err := strconv.Atoi(event.GetSequence())
+		var tmpPack packettypes.Packet
+		err := tmpPack.ABIDecode(event.GetPacket())
 		if err != nil {
 			return nil, err
-		}
-		//data, err := hex.DecodeString(event.GetDataList())
-		tmpPack := packettypes.Packet{
-			Sequence:         uint64(sequence),
-			SourceChain:      event.GetSrcChain(),
-			DestinationChain: event.GetDstChain(),
-			Ports:            event.GetPorts(),
-			RelayChain:       event.RelayChain, // skip validate empty
-			DataList:         event.GetDataList(),
 		}
 		packets = append(packets, tmpPack)
 	}
@@ -775,19 +750,11 @@ func (c *Tendermint) getPackets(stringEvents sdk.StringEvents, destChainType str
 		if !ok {
 			return nil, fmt.Errorf("proto parse failed")
 		}
-		sequence, err := strconv.Atoi(event.GetSequence())
+		var tmpPack packettypes.Packet
+		err := tmpPack.ABIDecode(event.GetPacket())
 		if err != nil {
 			return nil, err
 		}
-		tmpPack := packettypes.Packet{
-			Sequence:         uint64(sequence),
-			SourceChain:      event.GetSrcChain(),
-			DestinationChain: event.GetDstChain(),
-			Ports:            event.GetPorts(),
-			RelayChain:       event.RelayChain,
-			DataList:         event.GetDataList(),
-		}
-
 		packets = append(packets, tmpPack)
 	}
 	return packets, nil
@@ -804,17 +771,11 @@ func (c *Tendermint) getAckPackets(stringEvents sdk.StringEvents, destChainType 
 		if !ok {
 			return nil, fmt.Errorf("proto parse failed")
 		}
-		sequence, err := strconv.Atoi(event.GetSequence())
+
+		var tmpPack packettypes.Packet
+		err := tmpPack.ABIDecode(event.GetPacket())
 		if err != nil {
 			return nil, err
-		}
-		tmpPack := packettypes.Packet{
-			Sequence:         uint64(sequence),
-			SourceChain:      event.GetSrcChain(),
-			DestinationChain: event.GetDstChain(),
-			Ports:            event.GetPorts(),
-			RelayChain:       event.RelayChain,
-			DataList:         event.GetDataList(),
 		}
 		var ackPacket types.AckPacket
 		ackPacket.Packet = tmpPack

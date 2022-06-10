@@ -14,9 +14,8 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/teleport-network/teleport-relayer/app/types"
-	rcctypes "github.com/teleport-network/teleport/x/xibc/apps/rcc/types"
-	transfertypes "github.com/teleport-network/teleport/x/xibc/apps/transfer/types"
 	"github.com/teleport-network/teleport/x/xibc/core/host"
+	packettypes "github.com/teleport-network/teleport/x/xibc/core/packet/types"
 )
 
 const (
@@ -52,21 +51,19 @@ func TestGetPackets(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, packets.BizPackets)
 
-	for k, v := range packets.BizPackets[0].Ports {
-		if v == "FT" {
-			t.Log("Trasnfer packet")
-			var data transfertypes.FungibleTokenPacketData
-			err = data.DecodeBytes(packets.BizPackets[0].DataList[k])
+	for _, v := range packets.BizPackets {
+		var transferData packettypes.TransferData
+		err = transferData.ABIDecode(v.TransferData)
+		require.NoError(t, err)
+		require.NotNil(t, transferData)
+		t.Log("TransferData: ", transferData.String())
+
+		if len(v.CallData) != 0 {
+			var callData packettypes.CallData
+			err = callData.ABIDecode(v.CallData)
 			require.NoError(t, err)
-			require.NotNil(t, data)
-			t.Log(data.String())
-		} else {
-			t.Log("RCC packet")
-			var rccData rcctypes.RCCPacketData
-			err = rccData.DecodeBytes(packets.BizPackets[0].DataList[0])
-			require.NoError(t, err)
-			require.NotNil(t, rccData)
-			t.Log(rccData.String())
+			require.NotNil(t, callData)
+			t.Log("CallData: ", callData.String())
 		}
 	}
 
@@ -77,10 +74,22 @@ func TestGetPacketByHash(t *testing.T) {
 	packets, err := client.GetPacketsByHash("0xada2706af3fdf3e124c6d385e5bdb2ee044109f36d39ee68c1c8af3ef5274bc1")
 	require.NoError(t, err)
 	require.NotNil(t, packets.BizPackets)
-	var data transfertypes.FungibleTokenPacketData
-	err = data.DecodeBytes(packets.BizPackets[0].DataList[0])
-	require.NoError(t, err)
-	fmt.Println(data.String())
+
+	for _, v := range packets.BizPackets {
+		var transferData packettypes.TransferData
+		err = transferData.ABIDecode(v.TransferData)
+		require.NoError(t, err)
+		require.NotNil(t, transferData)
+		t.Log("TransferData: ", transferData.String())
+
+		if len(v.CallData) != 0 {
+			var callData packettypes.CallData
+			err = callData.ABIDecode(v.CallData)
+			require.NoError(t, err)
+			require.NotNil(t, callData)
+			t.Log("CallData: ", callData.String())
+		}
+	}
 }
 
 func TestGetProofIndex(t *testing.T) {

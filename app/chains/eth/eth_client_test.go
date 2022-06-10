@@ -1,21 +1,20 @@
 package eth
 
 import (
+	"context"
 	"fmt"
+	"math/big"
 	"testing"
 
-	rcctypes "github.com/teleport-network/teleport/x/xibc/apps/rcc/types"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/stretchr/testify/require"
+	"github.com/teleport-network/teleport/x/xibc/core/host"
+	packettypes "github.com/teleport-network/teleport/x/xibc/core/packet/types"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common"
-
-	transfertypes "github.com/teleport-network/teleport/x/xibc/apps/transfer/types"
-
-	"github.com/teleport-network/teleport-relayer/app/chains/eth/contracts/transfer"
 	"github.com/teleport-network/teleport-relayer/app/types"
 )
 
@@ -24,116 +23,28 @@ const (
 	rinkebyID = 4
 )
 
-func TestNewEth(t *testing.T) {
-	url := "https://ropsten.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
-	optPrivKey := "4f706b587618e242f45f9f67fb5cbb290902c7ff5828c468ee53138ef8a26945"
-	var chainID uint64 = 4
+func TestGetProofIndex(t *testing.T) {
+	rpcClient, err := rpc.DialContext(context.Background(), rinkeby)
+	client := Eth{gethRpcCli: rpcClient}
 
-	contractCfgGroup := NewContractCfgGroup()
-	contractCfgGroup.Packet.Addr = "0x2A212D09038c848A0d79a42E0Ab88B5FD8B1AD85"
-	contractCfgGroup.Packet.Topic = "PacketSent((uint64,string,string,string,string,bytes))"
-	contractCfgGroup.Packet.OptPrivKey = optPrivKey
+	require.NoError(t, err)
 
-	contractCfgGroup.AckPacket.Addr = "0x2A212D09038c848A0d79a42E0Ab88B5FD8B1AD85"
-	contractCfgGroup.AckPacket.Topic = "AckWritten((uint64,string,string,string,string,bytes),bytes)"
-	contractCfgGroup.AckPacket.OptPrivKey = optPrivKey
-
-	contractCfgGroup.Client.Addr = "0x53176d71Ac1AD08cF5a7e54aF1EdF5657B2419eC"
-	contractCfgGroup.Client.Topic = ""
-	contractCfgGroup.Client.OptPrivKey = optPrivKey
-
-	contractCfgGroup.Transfer.Addr = "0xD002C2fC0C1c0883F85eA1aa0305c7Fd7CD829e0"
-	contractCfgGroup.Transfer.Topic = "Transfer((string,uint256,string,string))"
-	contractCfgGroup.Transfer.OptPrivKey = optPrivKey
-
-	// address tokenAddress;
-	//        string receiver;
-	//        uint256 amount;
-	//        string destChain;
-	//        string relayChain;
-
-	// struct Packet {
-	//        uint64 sequence;
-	//        string port;
-	//        string sourceChain;
-	//        string destChain;
-	//        string relayChain;
-	//        bytes data;
-	//    }
-
-	contractBindOptsCfg := NewContractBindOptsCfg()
-	contractBindOptsCfg.ChainID = chainID
-	contractBindOptsCfg.ClientPrivKey = optPrivKey
-	contractBindOptsCfg.PacketPrivKey = optPrivKey
-	contractBindOptsCfg.GasLimit = 2000000
-	//contractBindOptsCfg.GasPrice = 1500000000
-
-	//  ropsten: {
-	//            url: 'https://ropsten.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161',
-	//            gasPrice: 9000000000,
-	//            chainId: 3,
-	//            gas: 4100000,
-	//            accounts: ['4f706b587618e242f45f9f67fb5cbb290902c7ff5828c468ee53138ef8a26945'],
-	//        },
-
-	chainCfg := NewChainConfig()
-	chainCfg.ContractCfgGroup = contractCfgGroup
-	chainCfg.ContractBindOptsCfg = contractBindOptsCfg
-	chainCfg.ChainType = types.ETH
-	chainCfg.ChainName = "ETH"
-	chainCfg.ChainURI = url
-	chainCfg.ChainID = chainID
-	chainCfg.Slot = 4
-	chainCfg.UpdateClientFrequency = 10
-
-	ethClient, err := newEth(chainCfg)
-	if err != nil {
-		t.Fatal(err)
+	for i := int64(205) - 100; i <= 205+100; i++ {
+		hash := crypto.Keccak256Hash(
+			host.PacketCommitmentKey("rinkeby", "teleport", 1),
+			common.LeftPadBytes(big.NewInt(i).Bytes(), 32),
+		)
+		proof, err := client.getProof(
+			context.Background(),
+			common.HexToAddress("0xa5ba9eaaa03901870494a6d1f957dd48daec9cf4"),
+			[]string{hexutil.Encode(hash.Bytes())},
+			big.NewInt(10821006),
+		)
+		require.NoError(t, err)
+		if len(proof.StorageProof) > 1 || proof.StorageProof[0].Value.Uint64() > 0 {
+			t.Log(i)
+		}
 	}
-	latestHeight, err := ethClient.GetLatestHeight()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Log(latestHeight)
-	res, err := ethClient.GetLightClientState("teleport")
-	if err != nil {
-		fmt.Printf("GetLightClientState ERROR:%v", err)
-	}
-	fmt.Println(res, err)
-
-	tokenAddress := "0x582e0992cb1EaE9B1AbcBF889EE640626453259F"
-	receiver := "0xFd805Fc7f5B60849dbA893168708AAFDD181fCf3"
-	destChain := "teleport"
-	relayChain := ""
-	transferData := transfer.TransferDataTypesERC20TransferData{
-		TokenAddress: common.HexToAddress(tokenAddress),
-		Receiver:     receiver,
-		Amount:       sdk.NewInt(100).BigInt(),
-		DestChain:    destChain,
-		RelayChain:   relayChain,
-	}
-	if err := ethClient.TransferERC20(transferData); err != nil {
-		fmt.Printf("TransferERC20 ERROR:%v", err)
-	}
-}
-
-func Test_Hex(t *testing.T) {
-	str := "0000000000000000000000000000000000000000000000000000000000000003"
-	dataBytes := common.HexToHash(str)
-	args := abi.Arguments{
-		abi.Argument{Type: Uint64},
-	}
-
-	headerBytes, err := args.Unpack(dataBytes.Bytes())
-	if err != nil {
-		return
-	}
-	fmt.Println("headerBytes: ", headerBytes)
-}
-
-func TestMakeBytes(t *testing.T) {
-	// TODO
 }
 
 func TestGetPacket(t *testing.T) {
@@ -154,34 +65,46 @@ func TestGetPacket(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, packets.BizPackets)
 
-	for k, v := range packets.BizPackets[0].Ports {
-		if v == "FT" {
-			t.Log("Trasnfer packet")
-			var data transfertypes.FungibleTokenPacketData
-			err = data.DecodeBytes(packets.BizPackets[0].DataList[k])
+	for _, v := range packets.BizPackets {
+		var transferData packettypes.TransferData
+		err = transferData.ABIDecode(v.TransferData)
+		require.NoError(t, err)
+		require.NotNil(t, transferData)
+		t.Log(transferData.String())
+
+		if len(v.CallData) != 0 {
+			var callData packettypes.CallData
+			err = callData.ABIDecode(v.CallData)
 			require.NoError(t, err)
-			require.NotNil(t, data)
-			t.Log(data.String())
-		} else {
-			t.Log("RCC packet")
-			var rccData rcctypes.RCCPacketData
-			err = rccData.DecodeBytes(packets.BizPackets[0].DataList[0])
-			require.NoError(t, err)
-			require.NotNil(t, rccData)
-			t.Log(rccData.String())
+			require.NotNil(t, callData)
+			t.Log("CallData: ", callData.String())
 		}
+
 	}
 }
 
 func TestGetPacketByHash(t *testing.T) {
 	client := getEth(t)
-	packets, err := client.GetPacketsByHash("0x5d0358275d975ae976872c873b64688c9f8094515f25093a7f6c524e84709557")
+	packets, err := client.GetPacketsByHash("")
 	require.NoError(t, err)
 	require.NotNil(t, packets.BizPackets)
-	var data transfertypes.FungibleTokenPacketData
-	err = data.DecodeBytes(packets.BizPackets[0].DataList[0])
-	require.NoError(t, err)
-	fmt.Println(data.String())
+
+	for _, v := range packets.BizPackets {
+		var transferData packettypes.TransferData
+		err = transferData.ABIDecode(v.TransferData)
+		require.NoError(t, err)
+		require.NotNil(t, transferData)
+		t.Log("TransferData: ", transferData.String())
+
+		if len(v.CallData) != 0 {
+			var callData packettypes.CallData
+			err = callData.ABIDecode(v.CallData)
+			require.NoError(t, err)
+			require.NotNil(t, callData)
+			t.Log("CallData: ", callData.String())
+		}
+	}
+
 }
 
 func getEth(t *testing.T) *Eth {
@@ -200,9 +123,6 @@ func getEth(t *testing.T) *Eth {
 	contractCfgGroup.Client.Topic = ""
 	contractCfgGroup.Client.OptPrivKey = optPrivKey
 
-	contractCfgGroup.Transfer.Addr = "0x41baacc9cf251b1046d72610bbc96af69e03ed0d"
-	contractCfgGroup.Transfer.Topic = "Transfer((string,uint256,string,string))"
-	contractCfgGroup.Transfer.OptPrivKey = optPrivKey
 	contractBindOptsCfg := NewContractBindOptsCfg()
 	contractBindOptsCfg.ChainID = rinkebyID
 	contractBindOptsCfg.ClientPrivKey = optPrivKey

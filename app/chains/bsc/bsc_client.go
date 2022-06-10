@@ -19,8 +19,8 @@ import (
 	packettypes "github.com/teleport-network/teleport/x/xibc/core/packet/types"
 	"github.com/teleport-network/teleport/x/xibc/exported"
 
-	"github.com/teleport-network/teleport-relayer/app/chains/bsc/contracts"
-	"github.com/teleport-network/teleport-relayer/app/chains/bsc/contracts/transfer"
+	clientcontract "github.com/teleport-network/teleport-relayer/app/chains/bsc/contracts/client"
+	packetcontract "github.com/teleport-network/teleport-relayer/app/chains/bsc/contracts/packet"
 	"github.com/teleport-network/teleport-relayer/app/interfaces"
 	"github.com/teleport-network/teleport-relayer/app/types"
 	"github.com/teleport-network/teleport-relayer/app/types/errors"
@@ -206,15 +206,7 @@ func (b *Bsc) RelayPackets(msgs sdk.Msg) (string, error) {
 	resultTx := &types.ResultTx{}
 	switch msg := msgs.(type) {
 	case *packettypes.MsgRecvPacket:
-		tmpPack := contracts.PacketTypesPacket{
-			Sequence:    msg.Packet.Sequence,
-			Ports:       msg.Packet.Ports,
-			DestChain:   msg.Packet.DestinationChain,
-			SourceChain: msg.Packet.SourceChain,
-			RelayChain:  msg.Packet.RelayChain,
-			DataList:    msg.Packet.DataList,
-		}
-		height := contracts.HeightData{
+		height := packetcontract.HeightData{
 			RevisionNumber: msg.ProofHeight.RevisionNumber,
 			RevisionHeight: msg.ProofHeight.RevisionHeight,
 		}
@@ -224,7 +216,7 @@ func (b *Bsc) RelayPackets(msgs sdk.Msg) (string, error) {
 		}
 		result, err := b.contracts.Packet.RecvPacket(
 			b.bindOpts.packetTransactOpts,
-			tmpPack,
+			msg.Packet,
 			msg.ProofCommitment,
 			height,
 		)
@@ -234,15 +226,7 @@ func (b *Bsc) RelayPackets(msgs sdk.Msg) (string, error) {
 		resultTx.Hash = result.Hash().String()
 
 	case *packettypes.MsgAcknowledgement:
-		tmpPack := contracts.PacketTypesPacket{
-			Sequence:    msg.Packet.Sequence,
-			Ports:       msg.Packet.Ports,
-			DestChain:   msg.Packet.DestinationChain,
-			SourceChain: msg.Packet.SourceChain,
-			RelayChain:  msg.Packet.RelayChain,
-			DataList:    msg.Packet.DataList,
-		}
-		height := contracts.HeightData{
+		height := packetcontract.HeightData{
 			RevisionNumber: msg.ProofHeight.RevisionNumber,
 			RevisionHeight: msg.ProofHeight.RevisionHeight,
 		}
@@ -253,7 +237,7 @@ func (b *Bsc) RelayPackets(msgs sdk.Msg) (string, error) {
 
 		result, err := b.contracts.Packet.AcknowledgePacket(
 			b.bindOpts.packetTransactOpts,
-			tmpPack, msg.Acknowledgement, msg.ProofAcked,
+			msg.Packet, msg.Acknowledgement, msg.ProofAcked,
 			height,
 		)
 		if err != nil {
@@ -323,7 +307,7 @@ func (b *Bsc) GetBlockTimestamp(height uint64) (uint64, error) {
 }
 
 func (b *Bsc) GetLightClientState(chainName string) (exported.ClientState, error) {
-	latestHeight, err := b.contracts.Client.GetLatestHeight(nil, chainName)
+	latestHeight, err := b.contracts.Client.GetLatestHeight(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -365,7 +349,7 @@ func (b *Bsc) UpdateClient(header exported.Header, chainName string) error {
 	if err := b.setClientOpts(); err != nil {
 		return err
 	}
-	result, err := b.contracts.Client.UpdateClient(b.bindOpts.client, chainName, headerBytes)
+	result, err := b.contracts.Client.UpdateClient(b.bindOpts.client, headerBytes)
 	if err != nil {
 		return err
 	}
@@ -493,15 +477,13 @@ func (b *Bsc) getPackets(fromBlock, toBlock uint64, hash string) ([]packettypes.
 		if err != nil {
 			return nil, err
 		}
-		tmpPack := packettypes.Packet{
-			Sequence:         packSent.Packet.Sequence,
-			DataList:         packSent.Packet.DataList,
-			SourceChain:      packSent.Packet.SourceChain,
-			DestinationChain: packSent.Packet.DestChain,
-			Ports:            packSent.Packet.Ports,
-			RelayChain:       packSent.Packet.RelayChain,
+		var tmpPacket packettypes.Packet
+		err = tmpPacket.ABIDecode(packSent.PacketBytes)
+		if err != nil {
+			return nil, err
 		}
-		bizPackets = append(bizPackets, tmpPack)
+
+		bizPackets = append(bizPackets, tmpPacket)
 	}
 	return bizPackets, nil
 }
@@ -529,13 +511,16 @@ func (b *Bsc) getAckPackets(fromBlock, toBlock uint64, hash string) ([]types.Ack
 		}
 		tmpAckPack := types.AckPacket{}
 		tmpAckPack.Packet = packettypes.Packet{
-			Sequence:         ackWritten.Packet.Sequence,
-			DataList:         ackWritten.Packet.DataList,
-			SourceChain:      ackWritten.Packet.SourceChain,
-			DestinationChain: ackWritten.Packet.DestChain,
-			Ports:            ackWritten.Packet.Ports,
-			RelayChain:       ackWritten.Packet.RelayChain,
+			SrcChain:        ackWritten.Packet.SrcChain,
+			DstChain:        ackWritten.Packet.DstChain,
+			Sequence:        ackWritten.Packet.Sequence,
+			Sender:          ackWritten.Packet.Sender,
+			TransferData:    ackWritten.Packet.TransferData,
+			CallData:        ackWritten.Packet.CallData,
+			CallbackAddress: ackWritten.Packet.CallbackAddress,
+			FeeOption:       ackWritten.Packet.FeeOption,
 		}
+
 		tmpAckPack.Acknowledgement = ackWritten.Ack
 		ackPackets = append(ackPackets, tmpAckPack)
 	}
@@ -642,32 +627,25 @@ func newBindOpts(cfg *ContractBindOptsCfg) (*bindOpts, error) {
 // ==================================================================================================================
 // contract client group
 type contractGroup struct {
-	Packet   *contracts.Contract
-	Client   *contracts.Contracts
-	Transfer *transfer.Contracts
+	Packet *packetcontract.Packet
+	Client *clientcontract.Client
 }
 
 func newContractGroup(ethClient *ethclient.Client, cfgGroup *ContractCfgGroup) (*contractGroup, error) {
 	packAddr := common.HexToAddress(cfgGroup.Packet.Addr)
-	packetFilter, err := contracts.NewContract(packAddr, ethClient)
+	packetFilter, err := packetcontract.NewPacket(packAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
 
 	clientAddr := common.HexToAddress(cfgGroup.Client.Addr)
-	clientFilter, err := contracts.NewContracts(clientAddr, ethClient)
-	if err != nil {
-		return nil, err
-	}
-	transferAddress := common.HexToAddress(cfgGroup.Transfer.Addr)
-	transferFilter, err := transfer.NewContracts(transferAddress, ethClient)
+	clientFilter, err := clientcontract.NewClient(clientAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
 
 	return &contractGroup{
-		Packet:   packetFilter,
-		Client:   clientFilter,
-		Transfer: transferFilter,
+		Packet: packetFilter,
+		Client: clientFilter,
 	}, nil
 }

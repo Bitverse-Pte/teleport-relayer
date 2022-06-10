@@ -48,39 +48,47 @@ type PacketDetail struct {
 	Sequence   uint64
 	SrcChain   string
 	DestChain  string
-	RelayChain string
 	FromHeight uint64
 	ToHeight   uint64
+	Hash       string
 	Type       string
 	ErrMsg     string
 }
 
-func NewPacketDetail(chainName string, sequence uint64, srcChain string, destChain string, relayChain string, fromHeight uint64, toHeight uint64, Ty string) *PacketDetail {
-	return &PacketDetail{ChainName: chainName, Sequence: sequence, SrcChain: srcChain, DestChain: destChain, RelayChain: relayChain, FromHeight: fromHeight, ToHeight: toHeight, Type: Ty}
+func NewPacketDetail(chainName string, sequence uint64, srcChain string, destChain string, fromHeight, toHeight uint64, hash string, Ty string) *PacketDetail {
+	return &PacketDetail{ChainName: chainName, Sequence: sequence, SrcChain: srcChain, DestChain: destChain, FromHeight: fromHeight, ToHeight: toHeight, Hash: hash, Type: Ty}
 }
 
 func GetPacketDetail(pkt sdk.Msg) PacketDetail {
 	switch p := pkt.(type) {
 	case *packettypes.MsgRecvPacket:
+		var pac packettypes.Packet
+		err := pac.ABIDecode(p.Packet)
+		if err != nil {
+			return PacketDetail{}
+		}
 		return PacketDetail{
-			Sequence:   p.Packet.Sequence,
-			SrcChain:   p.Packet.SourceChain,
-			DestChain:  p.Packet.DestinationChain,
-			RelayChain: p.Packet.RelayChain,
-			Type:       "Packet",
+			Sequence:  pac.Sequence,
+			SrcChain:  pac.SrcChain,
+			DestChain: pac.DstChain,
+			Type:      "Packet",
 		}
 	case *packettypes.MsgAcknowledgement:
+		var pac packettypes.Packet
+		err := pac.ABIDecode(p.Packet)
+		if err != nil {
+			return PacketDetail{}
+		}
 		return PacketDetail{
-			Sequence:   p.Packet.Sequence,
-			SrcChain:   p.Packet.SourceChain,
-			DestChain:  p.Packet.DestinationChain,
-			RelayChain: p.Packet.RelayChain,
-			Type:       "Acknowledgement",
+			Sequence:  pac.Sequence,
+			SrcChain:  pac.SrcChain,
+			DestChain: pac.DstChain,
+			Type:      "Acknowledgement",
 		}
 	}
 	return PacketDetail{}
 }
 
-func (pd PacketDetail) Equal(srcChain, destChain, relayChain string, sequence uint64) bool {
-	return pd.Sequence == sequence && pd.SrcChain == srcChain && pd.DestChain == destChain && pd.RelayChain == relayChain
+func (pd PacketDetail) Equal(srcChain, destChain string, sequence uint64) bool {
+	return pd.Sequence == sequence && pd.SrcChain == srcChain && pd.DestChain == destChain
 }
