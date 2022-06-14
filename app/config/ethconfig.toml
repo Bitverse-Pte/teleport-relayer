@@ -34,7 +34,7 @@
         [Chain.Dest.Eth.Contracts.Ack_packet]
           addr = "0x2A212D09038c848A0d79a42E0Ab88B5FD8B1AD85"
           opt_priv_key = "6995eddbc393d46b4bad576d1de73f5345782af4d003739176807ac3cbe969f6"
-          topic = "AckWritten((uint64,string,string,string,string,bytes),bytes)"
+          topic = "AckWritten((string,string,uint64,string,bytes,bytes,string,uint64),bytes)"
 
         [Chain.Dest.Eth.Contracts.Client]
           addr = "0x53176d71Ac1AD08cF5a7e54aF1EdF5657B2419eC"
@@ -44,7 +44,7 @@
         [Chain.Dest.Eth.Contracts.Packet]
           addr = "0x2A212D09038c848A0d79a42E0Ab88B5FD8B1AD85"
           opt_priv_key = "6995eddbc393d46b4bad576d1de73f5345782af4d003739176807ac3cbe969f6"
-          topic = "PacketSent((uint64,string,string,string,string,bytes))"
+          topic = "PacketSent(bytes)"
 
     [Chain.Dest.Tendermint]
       chain_id = "teleport_8544154630257-1"

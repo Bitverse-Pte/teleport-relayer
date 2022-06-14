@@ -111,15 +111,15 @@ func getEth(t *testing.T) *Eth {
 	optPrivKey := "d10f695d6cbe3d12808a23ba10b5d1fc407dbe0caabb18935e02aedcec8b358b"
 
 	contractCfgGroup := NewContractCfgGroup()
-	contractCfgGroup.Packet.Addr = "0x6c034eb404cb960cd51bf2570f8a71d61f1f39e7"
-	contractCfgGroup.Packet.Topic = "PacketSent((uint64,string,string,string,string[],bytes[]))"
+	contractCfgGroup.Packet.Addr = "0xf7268301384fb751e49fafdacd02c693eabb142c"
+	contractCfgGroup.Packet.Topic = "PacketSent(bytes)"
 	contractCfgGroup.Packet.OptPrivKey = optPrivKey
 
-	contractCfgGroup.AckPacket.Addr = "0x6c034eb404cb960cd51bf2570f8a71d61f1f39e7"
-	contractCfgGroup.AckPacket.Topic = "AckWritten((uint64,string,string,string,string[],bytes[]),bytes)"
+	contractCfgGroup.AckPacket.Addr = "0xf7268301384fb751e49fafdacd02c693eabb142c"
+	contractCfgGroup.AckPacket.Topic = "AckWritten((string,string,uint64,string,bytes,bytes,string,uint64),bytes)"
 	contractCfgGroup.AckPacket.OptPrivKey = optPrivKey
 
-	contractCfgGroup.Client.Addr = "0xf4836391aa84b680a8922f99211118bde1626911"
+	contractCfgGroup.Client.Addr = "0xa46d0b4ed205bf63cd1e2edffef2552b8930c479"
 	contractCfgGroup.Client.Topic = ""
 	contractCfgGroup.Client.OptPrivKey = optPrivKey
 

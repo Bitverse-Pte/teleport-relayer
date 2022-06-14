@@ -35,7 +35,7 @@ var defaultCfg string = `
         [Chain.Dest.Eth.Contracts.Ack_packet]
           addr = ""
           opt_priv_key = ""
-          topic = "AckWritten((uint64,string,string,string,string,bytes),bytes)"
+          topic = "AckWritten((string,string,uint64,string,bytes,bytes,string,uint64),bytes)"
 
         [Chain.Dest.Eth.Contracts.Client]
           addr = ""
@@ -45,7 +45,7 @@ var defaultCfg string = `
         [Chain.Dest.Eth.Contracts.Packet]
           addr = ""
           opt_priv_key = ""
-          topic = "PacketSent((uint64,string,string,string,string,bytes))"
+          topic = "PacketSent(bytes)"
 
   [Chain.Source]
     Chain_type = "tendermint"
