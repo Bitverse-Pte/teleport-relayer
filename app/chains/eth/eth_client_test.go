@@ -66,6 +66,10 @@ func TestGetPacket(t *testing.T) {
 	require.NotNil(t, packets.BizPackets)
 
 	for _, v := range packets.BizPackets {
+		t.Log("srcChain:", v.GetSrcChain())
+		t.Log("destChain:", v.GetDstChain())
+		t.Log("sequence:", v.GetSequence())
+
 		var transferData packettypes.TransferData
 		err = transferData.ABIDecode(v.TransferData)
 		require.NoError(t, err)
@@ -85,11 +89,15 @@ func TestGetPacket(t *testing.T) {
 
 func TestGetPacketByHash(t *testing.T) {
 	client := getEth(t)
-	packets, err := client.GetPacketsByHash("")
+	packets, err := client.GetPacketsByHash("0x1e110b269f95c5626479f4fd178708dec7006a9c06d59ff86192c69e2bea2644")
 	require.NoError(t, err)
 	require.NotNil(t, packets.BizPackets)
 
 	for _, v := range packets.BizPackets {
+		t.Log("srcChain:", v.GetSrcChain())
+		t.Log("destChain:", v.GetDstChain())
+		t.Log("sequence:", v.GetSequence())
+
 		var transferData packettypes.TransferData
 		err = transferData.ABIDecode(v.TransferData)
 		require.NoError(t, err)

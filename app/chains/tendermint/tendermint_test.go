@@ -3,21 +3,16 @@ package tendermint
 import (
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"sync"
 	"testing"
+
+	"github.com/cosmos/cosmos-sdk/types/query"
 
 	packettypes "github.com/teleport-network/teleport/x/xibc/core/packet/types"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/gogo/protobuf/proto"
-
-	"github.com/tendermint/tendermint/crypto/tmhash"
-
-	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx"
@@ -70,47 +65,20 @@ func newClient() (*client.TeleportClient, error) {
 	return c, nil
 }
 
-func TestGetValSetByHeight(t *testing.T) {
-	clientState := xibctendermint.ClientState{}
-	cliStateBytes, _ := ioutil.ReadFile("")
-	_ = json.Unmarshal(cliStateBytes, &clientState)
-	protoByte, _ := proto.Marshal(&clientState)
-	fmt.Println(string(protoByte))
-	cli, _ := newClient()
+func TestGetHashByEvent(t *testing.T) {
+	cli, err := newClient()
+	require.NoError(t, err)
 
-	req := tmservice.GetBlockByHeightRequest{
-		Height: 177411,
+	Pagination := &query.PageRequest{
+		Key:        []byte(""),
+		Limit:      200,
+		Offset:     0,
+		CountTotal: false,
+		Reverse:    false,
 	}
-
-	block, err := cli.TMServiceQuery.GetBlockByHeight(context.Background(), &req)
-	if err != nil {
-		panic(err)
-	}
-	txs := block.Block.GetData().Txs
-
-	tx, _ := cli.TxClient.GetTx(context.Background(), &tx.GetTxRequest{
-		Hash: hex.EncodeToString(tmhash.Sum(txs[0])),
-	})
-	events := tx.TxResponse.Logs[0].Events
-
-	datas := getEventsValues(types.EventTypeSendPacket, "data", events)
-	require.NotNil(t, datas)
-
-	//for _, data := range datas {
-	//	packet := &packettypes.Packet{}
-	//
-	//	d := data[1 : len(data)-1]
-	//	var buf bytes.Buffer
-	//	for _, v := range d {
-	//		buf.WriteString(fmt.Sprintf("%q", v))
-	//	}
-	//	if err := packet.Unmarshal([]byte(d)); err != nil {
-	//		if packet == nil {
-	//			continue
-	//		}
-	//
-	//	}
-	//}
+	res, err := cli.TxClient.GetTxsEvent(context.Background(), &tx.GetTxsEventRequest{Events: []string{"xibc.core.packet.v1.EventRecvPacket.src_chain='rinkeby'"}, Pagination: Pagination, OrderBy: 1})
+	require.NoError(t, err)
+	t.Log(len(res.Txs))
 }
 
 func getEventsValues(typ, key string, stringEvents sdk.StringEvents) []string {
@@ -201,6 +169,10 @@ func TestGetPacketsByHeight(t *testing.T) {
 	require.NotNil(t, packet)
 
 	for _, v := range packet.BizPackets {
+		t.Log("srcChain:", v.GetSrcChain())
+		t.Log("destChain:", v.GetDstChain())
+		t.Log("sequence:", v.GetSequence())
+
 		var transferData packettypes.TransferData
 		err = transferData.ABIDecode(v.TransferData)
 		require.NoError(t, err)
