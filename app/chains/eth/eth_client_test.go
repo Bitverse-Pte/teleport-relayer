@@ -6,6 +6,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/teleport-network/teleport-relayer/app/utils"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -89,7 +91,7 @@ func TestGetPacket(t *testing.T) {
 
 func TestGetPacketByHash(t *testing.T) {
 	client := getEth(t)
-	packets, err := client.GetPacketsByHash("0x1e110b269f95c5626479f4fd178708dec7006a9c06d59ff86192c69e2bea2644")
+	packets, err := client.GetPacketsByHash("0x0eea7e2a45e113dfa9cea893038821368f874a5a387ce9e3f22fe3a0b79d38b2")
 	require.NoError(t, err)
 	require.NotNil(t, packets.BizPackets)
 
@@ -113,6 +115,9 @@ func TestGetPacketByHash(t *testing.T) {
 		}
 	}
 
+	res, err := utils.BridgeTimeLimitCheck(packets.BizPackets, "https://bridge.qa.davionlabs.com/bridge/status")
+	require.NoError(t, err)
+	t.Log(res)
 }
 
 func getEth(t *testing.T) *Eth {

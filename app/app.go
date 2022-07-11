@@ -124,15 +124,24 @@ func (a *App) EvmClientSync() {
 
 func (a *App) ManualRelay(detail *types.PacketDetail) error {
 	var channel channels.IChannel
-	if a.channelMap[detail.ChainName] != nil {
-		// as src chain
-		channel = a.channelMap[detail.ChainName]
-	} else {
+	if a.channelMap[detail.ChainName] == nil {
 		return errors.New(fmt.Sprintf("can not find chain %s in channel", detail.ChainName))
 	}
+	channel = a.channelMap[detail.ChainName]
 	err := channel.ManualRelay(detail)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (a *App) QueryPacketsByHash(chainName, hash string) (*types.Packets, error) {
+	var channel channels.IChannel
+	if a.channelMap[chainName] != nil {
+		// as src chain
+		channel = a.channelMap[chainName]
+	} else {
+		return nil, errors.New(fmt.Sprintf("can not find chain %s in channel", chainName))
+	}
+	return channel.QueryPacketByHash(hash)
 }

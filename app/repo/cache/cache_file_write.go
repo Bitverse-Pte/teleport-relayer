@@ -12,21 +12,84 @@ import (
 	"github.com/teleport-network/teleport-relayer/app/types"
 )
 
-type CacheFileWriter struct {
+type FileWriters struct {
+	HeightWriter  *HeightCacheFileWriter
+	ErrWriter     *ErrRelayFileWriter
+	SuccessWriter *SuccessRelayFileWriter
+}
+
+type SuccessRelayFileWriter struct {
 	homeDir       string
 	cacheDir      string
 	cacheFilename string
 }
 
-func NewCacheFileWriter(homeDir, cacheDir, cacheFilename string) *CacheFileWriter {
-	return &CacheFileWriter{
+func NewSuccessRelayFileWriter(homeDir, cacheDir, cacheFilename string) *SuccessRelayFileWriter {
+	return &SuccessRelayFileWriter{
 		homeDir:       homeDir,
 		cacheDir:      cacheDir,
 		cacheFilename: cacheFilename,
 	}
 }
 
-func (w *CacheFileWriter) WriteErrRelay(packetDetails []types.PacketDetail, isCover bool) error {
+func (w *SuccessRelayFileWriter) WriteSuccessRelay(packetDetail types.PacketDetail, receiveHash string, isCover bool) error {
+	cacheDir := path.Join(w.homeDir, w.cacheDir)
+	filename := path.Join(cacheDir, w.cacheFilename)
+	var file *os.File
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		// Create the home config folder
+		if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
+			// Create the home folder
+			if err = os.MkdirAll(cacheDir, os.ModePerm); err != nil {
+				return err
+			}
+		}
+		// Then create the file...
+		file, err = os.Create(filename)
+		if err != nil {
+			return err
+		}
+	} else {
+		if isCover {
+			file, err = os.OpenFile(filename, os.O_WRONLY|os.O_TRUNC, 0666)
+		} else {
+			file, err = os.OpenFile(filename, os.O_WRONLY|os.O_APPEND, 0666)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	defer file.Close()
+	write := bufio.NewWriter(file)
+	// Get string then write
+	successRelay := packetDetail.ToSuccessRelay(receiveHash)
+	cacheDataWriteBytes, err := json.Marshal(&successRelay)
+	if err != nil {
+		return err
+	}
+	if _, err = write.WriteString(fmt.Sprintf("%v\n", string(cacheDataWriteBytes))); err != nil {
+		return err
+	}
+
+	write.Flush()
+	return nil
+}
+
+type ErrRelayFileWriter struct {
+	homeDir       string
+	cacheDir      string
+	cacheFilename string
+}
+
+func NewErrRelayFileWriter(homeDir, cacheDir, cacheFilename string) *ErrRelayFileWriter {
+	return &ErrRelayFileWriter{
+		homeDir:       homeDir,
+		cacheDir:      cacheDir,
+		cacheFilename: cacheFilename,
+	}
+}
+
+func (w *ErrRelayFileWriter) WriteErrRelay(packetDetails []types.PacketDetail, isCover bool) error {
 	cacheDir := path.Join(w.homeDir, w.cacheDir)
 	filename := path.Join(cacheDir, w.cacheFilename)
 	var file *os.File
@@ -68,7 +131,7 @@ func (w *CacheFileWriter) WriteErrRelay(packetDetails []types.PacketDetail, isCo
 	return nil
 }
 
-func (w *CacheFileWriter) GetErrRelay() ([]types.PacketDetail, error) {
+func (w *ErrRelayFileWriter) GetErrRelay() ([]types.PacketDetail, error) {
 	var packetDetails []types.PacketDetail
 	cacheDir := path.Join(w.homeDir, w.cacheDir)
 	filename := path.Join(cacheDir, w.cacheFilename)
@@ -100,7 +163,21 @@ func (w *CacheFileWriter) GetErrRelay() ([]types.PacketDetail, error) {
 	return packetDetails, nil
 }
 
-func (w *CacheFileWriter) Write(height uint64) error {
+type HeightCacheFileWriter struct {
+	homeDir       string
+	cacheDir      string
+	cacheFilename string
+}
+
+func NewHeightCacheFileWriter(homeDir, cacheDir, cacheFilename string) *HeightCacheFileWriter {
+	return &HeightCacheFileWriter{
+		homeDir:       homeDir,
+		cacheDir:      cacheDir,
+		cacheFilename: cacheFilename,
+	}
+}
+
+func (w *HeightCacheFileWriter) Write(height uint64) error {
 	cacheDataObj := &Data{}
 	cacheDataObj.LatestHeight = height
 
@@ -150,7 +227,7 @@ func (w *CacheFileWriter) Write(height uint64) error {
 	return nil
 }
 
-func (w *CacheFileWriter) LoadCache() *Data {
+func (w *HeightCacheFileWriter) LoadCache() *Data {
 	// If the file exists, the initial height is the latest_height in the file
 	filename := path.Join(w.homeDir, w.cacheDir, w.cacheFilename)
 	file, err := os.Open(filename)

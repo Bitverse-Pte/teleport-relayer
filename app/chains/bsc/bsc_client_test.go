@@ -13,9 +13,10 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	"github.com/teleport-network/teleport-relayer/app/types"
 	"github.com/teleport-network/teleport/x/xibc/core/host"
 	packettypes "github.com/teleport-network/teleport/x/xibc/core/packet/types"
+
+	"github.com/teleport-network/teleport-relayer/app/types"
 )
 
 const (
@@ -75,7 +76,7 @@ func TestGetPackets(t *testing.T) {
 
 func TestGetPacketByHash(t *testing.T) {
 	client := newBscClient(t)
-	packets, err := client.GetPacketsByHash("")
+	packets, err := client.GetPacketsByHash("0xe1b613d5492eb38b2b67bfe7f917e3bebbdd38ad4558d1d3b606cdbae5a9a537")
 	require.NoError(t, err)
 	require.NotNil(t, packets.BizPackets)
 

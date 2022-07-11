@@ -22,8 +22,11 @@ import (
 
 var _ IChannel = new(Channel)
 
-const DefaultBatchSize uint64 = 10
-const DefaultErrRelayFile = "errRelay"
+const (
+	DefaultBatchSize    uint64 = 10
+	DefaultErrRelayFile        = "errRelay"
+	SuccessRelayFile           = "successRelay"
+)
 
 type IChannel interface {
 	RelayTask(s *gocron.Scheduler)
@@ -34,23 +37,24 @@ type IChannel interface {
 	ViewExtraWait(ctx *gin.Context)
 	ManualRelayByHash(ctx *gin.Context)
 	ManualRelay(detail *types.PacketDetail) error
+	QueryPacketByHash(hash string) (*types.Packets, error)
 }
 
 type Channel struct {
-	chainA          interfaces.IChain
-	chainB          interfaces.IChain
-	relayHeight     uint64
-	clientHeight    uint64
-	checkHeight     uint64
-	chainName       string
-	relayFrequency  uint64
-	extraWait       uint64 // waitTime = (extraWait * relayFrequency) second
-	state           *cache.CacheFileWriter
-	errRelay        *cache.CacheFileWriter
-	logger          *log.Logger
-	batchSize       uint64
-	bridgeStatusApi string
-	bridgeEnable    bool
+	chainA            interfaces.IChain
+	chainB            interfaces.IChain
+	relayHeight       uint64
+	clientHeight      uint64
+	checkHeight       uint64
+	chainName         string
+	relayFrequency    uint64
+	extraWait         uint64 // waitTime = (extraWait * relayFrequency) second
+	fileWriters       cache.FileWriters
+	logger            *log.Logger
+	batchSize         uint64
+	bridgeStatusApi   string
+	bridgeEnable      bool
+	timeLimitCheckApi string
 }
 
 // TODO: pullHeight   relayHeight   chainAHeight   clientAHeight
@@ -66,12 +70,12 @@ func NewChannel(
 	error,
 ) {
 	var startHeight uint64
-	state := cache.NewCacheFileWriter(config.Home, config.DefaultCacheDirName, chainACfg.Cache.Filename)
+	state := cache.NewHeightCacheFileWriter(config.Home, config.DefaultCacheDirName, chainACfg.Cache.Filename)
 	errFileName := DefaultErrRelayFile
 	if chainACfg.Cache.ErrFileName != "" {
 		errFileName = chainACfg.Cache.ErrFileName
 	}
-	errRelayCache := cache.NewCacheFileWriter(config.Home, config.DefaultCacheDirName, chainA.ChainName()+errFileName)
+	errRelayCache := cache.NewErrRelayFileWriter(config.Home, config.DefaultCacheDirName, chainA.ChainName()+errFileName)
 	stateData := state.LoadCache()
 	if chainA.ChainType() == types.Tendermint {
 		startHeight = chainACfg.Cache.StartHeight
@@ -95,29 +99,34 @@ func NewChannel(
 	if chainACfg.BatchSize != 0 {
 		batchSize = chainACfg.BatchSize
 	}
+	successRelayCache := cache.NewSuccessRelayFileWriter(config.Home, config.DefaultCacheDirName, chainA.ChainName()+SuccessRelayFile)
 	return &Channel{
-		chainA:          chainA,
-		chainB:          chainB,
-		relayHeight:     startHeight,
-		chainName:       chainA.ChainName(),
-		relayFrequency:  chainACfg.RelayFrequency,
-		state:           state,
-		logger:          logger,
-		batchSize:       batchSize,
-		bridgeStatusApi: cfg.App.BridgeStatusApi,
-		bridgeEnable:    cfg.App.BridgeEnable,
-		errRelay:        errRelayCache,
+		chainA:            chainA,
+		chainB:            chainB,
+		relayHeight:       startHeight,
+		chainName:         chainA.ChainName(),
+		relayFrequency:    chainACfg.RelayFrequency,
+		logger:            logger,
+		batchSize:         batchSize,
+		bridgeStatusApi:   cfg.App.BridgeStatusApi,
+		bridgeEnable:      cfg.App.BridgeEnable,
+		timeLimitCheckApi: cfg.App.TimeLimitCheckApi,
+		fileWriters: cache.FileWriters{
+			HeightWriter:  state,
+			ErrWriter:     errRelayCache,
+			SuccessWriter: successRelayCache,
+		},
 	}, nil
 }
 
 func (c *Channel) UpdateHeight() {
-	if err := c.state.Write(c.relayHeight); err != nil {
+	if err := c.fileWriters.HeightWriter.Write(c.relayHeight); err != nil {
 		panic(fmt.Errorf("state.Write error:%+v", err))
 	}
 }
 
 func (c *Channel) WriteErrRelay() {
-	if err := c.state.Write(c.relayHeight); err != nil {
+	if err := c.fileWriters.HeightWriter.Write(c.relayHeight); err != nil {
 		panic(fmt.Errorf("WriteErrRelay.Write error:%+v", err))
 	}
 }

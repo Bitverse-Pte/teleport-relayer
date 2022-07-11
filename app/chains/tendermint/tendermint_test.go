@@ -7,6 +7,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/teleport-network/teleport-relayer/app/utils"
+
 	"github.com/cosmos/cosmos-sdk/types/query"
 
 	packettypes "github.com/teleport-network/teleport/x/xibc/core/packet/types"
@@ -163,8 +165,8 @@ func TestGetPacketsByHash(t *testing.T) {
 }
 
 func TestGetPacketsByHeight(t *testing.T) {
-	c := newTendermintClient(localGrpc, localChainId)
-	packet, err := c.GetPackets(55, 55, "")
+	c := newTendermintClient(GrpcUrl, ChainId)
+	packet, err := c.GetPackets(1249646, 1249646, "")
 	require.NoError(t, err)
 	require.NotNil(t, packet)
 
@@ -187,4 +189,9 @@ func TestGetPacketsByHeight(t *testing.T) {
 			t.Log("CallData: ", callData.String())
 		}
 	}
+
+	check, err := utils.BridgeTimeLimitCheck(packet.BizPackets, "https://bridge.qa.davionlabs.com/bridge/status")
+	require.NoError(t, err)
+
+	t.Log(check)
 }

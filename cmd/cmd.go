@@ -40,6 +40,12 @@ var (
 		Short:   "Generate the files needed for create client: clientStatus & consensusState",
 		Run:     func(cmd *cobra.Command, args []string) { generate.GenerateClientFiles() },
 	}
+	queryCmd = &cobra.Command{
+		Use:     "query",
+		Aliases: []string{"q"},
+		Short:   "teleport querys",
+		Run:     func(cmd *cobra.Command, args []string) { _ = cmd.Help() },
+	}
 	genCmd = &cobra.Command{
 		Use:     "genFiles [type] [chainName] [chainId] [url] [height] ",
 		Aliases: []string{"genF"},
@@ -64,12 +70,16 @@ var (
 	versionCmd = version.NewVersionCommand()
 
 	manualRelayCmd = &cobra.Command{
-		Use:     "relay [chainName] [fromHeight] [toHeight] [srcChain] [destChain] [sequence] [relayChain]",
-		Short:   "manual relay with the packet fromHeight and toHeight",
-		Example: fmt.Sprintf("relay teleport 1 1 teleport rinkeby \nrelay bsctest 1 1 bsctest rinkeby teleport 1"),
-		Args:    cobra.RangeArgs(1, 6),
+		Use:   "relay [chainName] [fromHeight] [toHeight] [srcChain] [destChain] [sequence]",
+		Short: "manual relay with the packet fromHeight and toHeight",
+		Example: fmt.Sprintf(
+			"relay teleport 1 1 teleport rinkeby -c config " +
+				"\nrelay bsctest 1 1 bsctest rinkeby teleport 1 -c config" +
+				"\nrelay bsctest --hash <hash> -c config ",
+		),
+		Args: cobra.RangeArgs(1, 6),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) != 1 && len(args) != 3 && len(args) != 7 {
+			if len(args) != 1 && len(args) != 3 && len(args) != 6 {
 				return errors.New("incorrect quantity")
 			}
 			ChainName = args[0]
@@ -95,7 +105,7 @@ var (
 				if ToHeight < FromHeight || FromHeight < 1 {
 					return errors.New("invalid height")
 				}
-				if len(args) == 6 {
+				if len(args) == 5 {
 					SrcChain = args[3]
 					DestChain = args[4]
 					arg5, err := strconv.ParseUint(args[5], 10, 64)
@@ -103,7 +113,6 @@ var (
 						return err
 					}
 					Sequence = arg5
-					RelayChain = args[6]
 				}
 				err = manualRelay()
 				if err != nil {
@@ -128,6 +137,8 @@ func init() {
 	manualRelayCmd.Flags().StringVarP(&config.LocalConfig, "CONFIG", "c", "", "config path: /opt/local.toml")
 	manualRelayCmd.Flags().StringVarP(&Hash, "hash", "", "", "hash <hash>")
 
+	queryCmd.AddCommand(NewQueryPacketCommand())
+
 	rootCmd.AddCommand(startCmd)
 	rootCmd.AddCommand(generateCmd)
 	rootCmd.AddCommand(configInitCmd)
@@ -135,7 +146,9 @@ func init() {
 	rootCmd.AddCommand(genCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(manualRelayCmd)
+	rootCmd.AddCommand(queryCmd)
 }
+
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(-1)

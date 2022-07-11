@@ -242,10 +242,3 @@ func (c *Channel) GetMsgByHash(hash string) ([]sdk.Msg, error) {
 	}
 	return relayPackets, nil
 }
-
-//
-//func (c *Channel) filterPacket(packet *packettypes.Packet) bool {
-//	return (packet.SrcChain != c.chainA.ChainName() && packet.RelayChain != c.chainA.ChainName()) ||
-//		(packet.DstChain != c.chainB.ChainName() && packet.RelayChain != c.chainB.ChainName()) ||
-//		!(packet.RelayChain == c.chainA.ChainName() && packet.RelayChain == c.chainB.ChainName())
-//}

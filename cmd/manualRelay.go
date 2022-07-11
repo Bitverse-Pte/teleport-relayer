@@ -10,11 +10,10 @@ var (
 	FromHeight uint64
 	ToHeight   uint64
 
-	Hash       string
-	SrcChain   string
-	DestChain  string
-	RelayChain string
-	Sequence   uint64
+	Hash      string
+	SrcChain  string
+	DestChain string
+	Sequence  uint64
 )
 
 func manualRelay() error {

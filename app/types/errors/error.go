@@ -25,6 +25,9 @@ var (
 	ErrCurBlockTime        = Register(RootCodeSpace, 16, "failed to get current block time")
 	ErrUnknownMsg          = Register(RootCodeSpace, 17, "failed to unknown msg type")
 	ErrBridgeConn          = Register(RootCodeSpace, 18, "connection bridge failed")
+	ErrWriteSuccessFile    = Register(RootCodeSpace, 19, "failed to write success relay packet")
+	ErrUnmarshal           = Register(RootCodeSpace, 20, "unmarshal failed")
+	ErrCheckTimeLimit      = Register(RootCodeSpace, 21, "check time limit failed")
 )
 
 var usedCodes = map[string]*Error{}

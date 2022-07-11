@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	packettypes "github.com/teleport-network/teleport/x/xibc/core/packet/types"
+
 	"github.com/go-co-op/gocron"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -240,21 +242,25 @@ func (c *Channel) RelayPackets(height uint64) error {
 			return fmt.Errorf("get chainB latest heigt error:%v", err)
 		}
 
+		packetDetail := types.GetPacketDetail(pkt)
+		packetDetail.ChainName = c.chainA.ChainName()
 		res, err := c.RetryRelay(pkt)
 		if err != nil {
 			c.logger.Infof("RelayPackets result: %v , err : %v", res, err)
-			packetDetail := types.GetPacketDetail(pkt)
 			packetDetail.FromHeight = height
 			packetDetail.ToHeight = updateHeight
-			packetDetail.ChainName = c.chainA.ChainName()
 			packetDetail.ErrMsg = err.Error()
-			// Write Err relay details and
-			if err := c.errRelay.WriteErrRelay([]types.PacketDetail{packetDetail}, false); err != nil {
+			// Write Err relay details
+			if err := c.fileWriters.ErrWriter.WriteErrRelay([]types.PacketDetail{packetDetail}, false); err != nil {
 				c.logger.Errorf("errRelay.WriteErrRelay error:%v", err.Error())
 			}
 			continue
 		}
 		c.logger.Infof("recv hash : %v ,recv height %v", res, chainBHeight)
+		// write success relay
+		if err = c.fileWriters.SuccessWriter.WriteSuccessRelay(packetDetail, res, false); err != nil {
+			return err
+		}
 	}
 	c.logger.Infoln("endRelay ...", time.Now())
 	c.relayHeight = updateHeight
@@ -264,7 +270,7 @@ func (c *Channel) RelayPackets(height uint64) error {
 func (c *Channel) handleErrRelayRecord() error {
 	c.logger.Infoln("Handle ErrRelay Record ")
 	var errPacketDetails []types.PacketDetail
-	packets, err := c.errRelay.GetErrRelay()
+	packets, err := c.fileWriters.ErrWriter.GetErrRelay()
 	if err != nil {
 		return fmt.Errorf("GetErrRelay err:%+v", err)
 	}
@@ -283,20 +289,29 @@ func (c *Channel) handleErrRelayRecord() error {
 				packetDetail.ChainName = c.chainA.ChainName()
 				packetDetail.ErrMsg = err.Error()
 				errPacketDetails = append(errPacketDetails, packetDetail)
-				// Write Err relay details and
+				// Write Err relay details
 				continue
 			}
 		}
 	}
 	c.logger.Infoln("errPacketDetails:", errPacketDetails)
-	if err := c.errRelay.WriteErrRelay(errPacketDetails, true); err != nil {
+	if err := c.fileWriters.ErrWriter.WriteErrRelay(errPacketDetails, true); err != nil {
 		c.logger.Errorf("errRelay.WriteErrRelay error:%v", err.Error())
 	}
 	return nil
 }
 
 func (c *Channel) RetryRelay(pkt sdk.Msg) (res string, err error) {
-	//count := 0
+	// time limit check
+	check, err := c.TimeLimitCheck(pkt)
+	if err != nil || check != "" {
+		pack := types.GetPacketDetail(pkt)
+		c.logger.Errorf("Trigger risk control %v \n", pack.PacString())
+		return "", fmt.Errorf("TimeLimitCheck failed : %v %v", err, check)
+	}
+
+	// retry
+	count := 0
 	for i := 0; i < types.RetryTimes; i++ {
 		res, err = c.chainB.RelayPackets(pkt)
 		if err != nil {
@@ -304,13 +319,14 @@ func (c *Channel) RetryRelay(pkt sdk.Msg) (res string, err error) {
 			if handleRecvPacketsError(err) {
 				return res, nil
 			}
+			// when sequence mismatch should try types.SequenceMissMatchTimes times
 			if strings.Contains(err.Error(), "account sequence mismatch") {
-				//if count > 6 {
-				//	continue
-				//}
+				if count > types.SequenceMissMatchTimes {
+					continue
+				}
 				i = 0
-				//count++
-				c.logger.Infoln("sequence mismatch relayer will retry , relay height at ", c.relayHeight)
+				count++
+				c.logger.Infoln("sequence mismatch ,relayer will retry ,relay height at ", c.relayHeight)
 				continue
 			}
 			continue
@@ -320,29 +336,67 @@ func (c *Channel) RetryRelay(pkt sdk.Msg) (res string, err error) {
 	return
 }
 
+func (c *Channel) TimeLimitCheck(pkt sdk.Msg) (string, error) {
+	var resp utils.RespStatus
+	status := false
+	switch packet := pkt.(type) {
+	case *packettypes.MsgRecvPacket:
+		var pac packettypes.Packet
+		err := pac.ABIDecode(packet.Packet)
+		if err != nil {
+			return "", err
+		}
+		res, err := utils.BridgeTimeLimitCheck([]packettypes.Packet{pac}, c.timeLimitCheckApi)
+		if err != nil {
+			return "", err
+		}
+		if res == nil || res.Code != 0 {
+			return "", errors.ErrCheckTimeLimit
+		}
+		status = true
+		resp = res.Data
+	}
+	// check the status
+	if status && resp.Status != utils.Success {
+		return resp.Message, nil
+	}
+	return "", nil
+}
+
 func (c *Channel) ManualRelay(packetRelay *types.PacketDetail) error {
 	start := time.Now()
-	//
-	//latestHeight, err := c.chainA.GetLatestHeight()
-	//if err != nil {
-	//	return err
-	//}
-	//if c.chainA.ChainType() == types.Tendermint {
-	//	c.logger.Infof(" Tendermint client need update client first,update height : %v", latestHeight)
-	//	if err := c.UpdateClientByHeight(latestHeight); err != nil {
-	//		return err
-	//	}
-	//	time.Sleep(3 * time.Second)
-	//}
+
+	latestHeight, err := c.chainA.GetLatestHeight()
+	if err != nil {
+		return err
+	}
 
 	state, err := c.chainB.GetLightClientState(c.chainA.ChainName())
 	if err != nil {
 		return err
 	}
-
 	clientHeight := state.GetLatestHeight().GetRevisionHeight()
 	delayHeight := state.GetDelayBlock()
 	endHeight := clientHeight - delayHeight
+
+	if c.chainA.ChainType() == types.Tendermint {
+		// update client(relay height > light client height and latest height > (relay height + delay height))
+		if packetRelay.ToHeight >= endHeight && latestHeight > packetRelay.ToHeight+delayHeight {
+			c.logger.Infof(" Tendermint client need update client first,update height : %v", latestHeight)
+			if err = c.UpdateClientByHeight(latestHeight); err != nil {
+				return err
+			}
+			time.Sleep(3 * time.Second)
+		}
+		// overwrite
+		state, err = c.chainB.GetLightClientState(c.chainA.ChainName())
+		if err != nil {
+			return err
+		}
+		clientHeight = state.GetLatestHeight().GetRevisionHeight()
+		delayHeight = state.GetDelayBlock()
+		endHeight = clientHeight - delayHeight
+	}
 
 	if packetRelay.ToHeight > endHeight {
 		return sdkerrors.Wrapf(errors.ErrDelayHeight, "height must lower than %d ,your hright is %d-%d", endHeight, packetRelay.FromHeight, packetRelay.ToHeight)
@@ -379,7 +433,7 @@ func (c *Channel) ManualRelay(packetRelay *types.PacketDetail) error {
 			return err
 		}
 	}
-	c.logger.Infof(" relay use time : %v", time.Now().Sub(start))
+	c.logger.Infof("relay use time : %v", time.Now().Sub(start))
 	return nil
 }
 
@@ -396,9 +450,12 @@ func (c *Channel) manualRelaySin(pkts []sdk.Msg, srcChain, destChain string, seq
 		if packetDetail.Equal(srcChain, destChain, sequence) {
 			res, err := c.RetryRelay(pkt)
 			if err != nil {
-				return sdkerrors.Wrapf(errors.ErrRecvPacket, "packet already relay and the receipt is %v ", receipt)
+				return sdkerrors.Wrapf(errors.ErrRecvPacket, " err : %v", err)
 			}
 			c.logger.Infof(" recv hash : %v", res)
+			if err = c.fileWriters.SuccessWriter.WriteSuccessRelay(packetDetail, res, false); err != nil {
+				return sdkerrors.Wrapf(errors.ErrWriteSuccessFile, " err : %v", err)
+			}
 			return nil
 		}
 	}
@@ -421,6 +478,13 @@ func (c *Channel) manualRelayAll(pkts []sdk.Msg) (res string, err error) {
 			return "", sdkerrors.Wrapf(errors.ErrRecvPacket, " err : %v", err)
 		}
 		c.logger.Infof(" recv hash : %v", res)
+		if err = c.fileWriters.SuccessWriter.WriteSuccessRelay(packetDetail, res, false); err != nil {
+			return "", sdkerrors.Wrapf(errors.ErrWriteSuccessFile, " err : %v", err)
+		}
 	}
 	return
+}
+
+func (c *Channel) QueryPacketByHash(hash string) (*types.Packets, error) {
+	return c.chainA.GetPacketsByHash(hash)
 }

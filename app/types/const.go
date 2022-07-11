@@ -14,9 +14,6 @@ const (
 	StatusActive  = "active"
 	StatusStopped = "stopped"
 
-	RetryTimes = 3
-
-	// ChannelTendermintToTendermint = "tendermint,tendermint"
-	// ChannelTendermintToEth        = "tendermint,eth"
-	// ChannelEthToTendermint        = "eth,tendermint"
+	RetryTimes             = 3
+	SequenceMissMatchTimes = 10
 )

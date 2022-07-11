@@ -257,7 +257,7 @@ const (
 
 func (c *Tendermint) GetProof(sourChainName, destChainName string, sequence uint64, height uint64, typ string) ([]byte, error) {
 	if height != 0 && height <= 2 {
-		// TODO return nil, nil, 0, fmt.Errorf("proof queries at height <= 2 are not supported")
+		return nil, fmt.Errorf("proof queries at height <= 2 are not supported")
 	}
 	// Use the IAVL height if a valid tendermint height is passed in.
 	// A height of 0 will query with the latest state.
@@ -273,7 +273,6 @@ func (c *Tendermint) GetProof(sourChainName, destChainName string, sequence uint
 	default:
 		return nil, errors.ErrGetProof
 	}
-	// _, proofBz, _, err := c.TeleportSDK.QueryTendermintProof(int64(height), key)
 
 	storeName := host.ModuleName
 	path := fmt.Sprintf("/store/%s/%s", storeName, "key")
@@ -289,7 +288,7 @@ func (c *Tendermint) GetProof(sourChainName, destChainName string, sequence uint
 	// ConvertProofs converts crypto.ProofOps into MerkleProof
 	merkleProof, err := commitmenttypes.ConvertProofs(res.ProofOps)
 	if err != nil {
-		//TODO return nil, nil, 0, err
+		return nil, err
 	}
 	proofBz, err := c.Codec.Marshal(&merkleProof)
 	if err != nil {
@@ -345,7 +344,26 @@ func (c *Tendermint) RelayPackets(pkt sdk.Msg) (string, error) {
 	if res.TxResponse.Code != 0 {
 		return "", fmt.Errorf(res.TxResponse.RawLog)
 	}
+
+	if err := c.reTryTxResult(res.TxResponse.TxHash, 0); err != nil {
+		return "", fmt.Errorf("get tx result error : %v", err)
+	}
 	return res.TxResponse.TxHash, nil
+}
+
+func (c *Tendermint) reTryTxResult(hash string, n uint64) error {
+	if n == types.RetryTimes {
+		return fmt.Errorf("retry %d times and return error", n)
+	}
+	res, err := c.TeleportSDK.TxClient.GetTx(context.Background(), &tx.GetTxRequest{Hash: hash})
+	if err != nil {
+		time.Sleep(3 * time.Second)
+		return c.reTryTxResult(hash, n+1)
+	}
+	if res.TxResponse.Code != 0 {
+		return fmt.Errorf("code != 0 ,tx failed , err : %v", res.TxResponse.RawLog)
+	}
+	return nil
 }
 
 func (c *Tendermint) GetBlockTimestamp(height uint64) (uint64, error) {
@@ -719,24 +737,6 @@ OUTER_LOOP:
 func backoffTimeout(attempt uint16) time.Duration {
 	// nolint:gosec // G404: Use of weak random number generator
 	return time.Duration(500*attempt*attempt)*time.Millisecond + time.Duration(rand.Intn(1000))*time.Millisecond
-}
-
-func (c *Tendermint) getCrossChainPackets(stringEvents sdk.StringEvents, destChainType string) ([]packettypes.Packet, error) {
-	protoEvents := getEventsVals(types.EventTypeSendPacket, stringEvents)
-	var packets []packettypes.Packet
-	for _, protoEvent := range protoEvents {
-		event, ok := protoEvent.(*packettypes.EventSendPacket)
-		if !ok {
-			// TODO
-		}
-		var tmpPack packettypes.Packet
-		err := tmpPack.ABIDecode(event.GetPacket())
-		if err != nil {
-			return nil, err
-		}
-		packets = append(packets, tmpPack)
-	}
-	return packets, nil
 }
 
 func (c *Tendermint) getPackets(stringEvents sdk.StringEvents, destChainType string) ([]packettypes.Packet, error) {

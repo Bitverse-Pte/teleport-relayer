@@ -1,10 +1,14 @@
 package utils
 
 import (
+	"bytes"
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"time"
+
+	packettypes "github.com/teleport-network/teleport/x/xibc/core/packet/types"
 
 	"github.com/avast/retry-go"
 
@@ -57,4 +61,46 @@ func RetryGetBridgeStatus(api string) (status int, err error) {
 		retry.OnRetry(onRetryFunc),
 	)
 	return
+}
+
+type Response struct {
+	Code    int        `json:"code"`
+	Message string     `json:"message"`
+	Data    RespStatus `json:"data"`
+}
+
+type RespStatus struct {
+	Status  int8   `json:"status"`
+	Message string `json:"message"`
+}
+
+const (
+	Failed int8 = iota
+	Success
+	TooSmall
+	Overflow
+)
+
+func BridgeTimeLimitCheck(packets []packettypes.Packet, api string) (*Response, error) {
+	b, _ := json.Marshal(packets)
+	res, err := http.Post(api, "application/json", bytes.NewBuffer(b))
+	if err != nil {
+		return nil, errors.ErrBridgeConn
+	}
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, errors.ErrBridgeConn
+	}
+
+	if res.StatusCode == 200 {
+		var response *Response
+		err = json.Unmarshal(body, &response)
+		if err != nil {
+			return nil, errors.ErrUnmarshal
+		}
+		return response, nil
+	}
+	return nil, errors.ErrBridgeConn
 }

@@ -135,12 +135,13 @@ type (
 	// =====================================================================
 
 	App struct {
-		MetricAddr      string   `toml:"metric_addr"`
-		Env             string   `toml:"env"`
-		LogLevel        string   `toml:"log_level"`
-		ChannelTypes    []string `toml:"channel_types"`
-		BridgeStatusApi string   `toml:"bridge_status_api"`
-		BridgeEnable    bool     `toml:"bridge_enable"`
+		MetricAddr        string   `toml:"metric_addr"`
+		Env               string   `toml:"env"`
+		LogLevel          string   `toml:"log_level"`
+		ChannelTypes      []string `toml:"channel_types"`
+		BridgeStatusApi   string   `toml:"bridge_status_api"`
+		BridgeEnable      bool     `toml:"bridge_enable"`
+		TimeLimitCheckApi string   `toml:"time_limit_check_api"`
 	}
 
 	Cache struct {
